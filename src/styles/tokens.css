@@ -1,0 +1,248 @@
+/* =========================================================================
+   CEDARS TECH — CAR RENTAL LEBANON
+   Phase 1 design tokens
+   Direction: editorial automotive · daylight warm-white canvas ·
+   restrained near-black · ONE structural accent (cedar clay)
+   ========================================================================= */
+
+@theme {
+  /* --- Canvas / surfaces ------------------------------------------------ */
+  --color-canvas: #fbfaf7;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f4f1ea;
+  --color-surface-raised: #ffffff;
+
+  /* --- Ink (restrained near-black, warm) -------------------------------- */
+  --color-ink: #15140f;
+  --color-ink-soft: #3a382f;
+  --color-ink-muted: #6b6759;
+  --color-ink-faint: #928d7d;
+
+  /* --- Lines ------------------------------------------------------------ */
+  --color-line: #e5e1d6;
+  --color-line-strong: #cfcabb;
+
+  /* --- THE accent (single structural accent) ---------------------------- */
+  --color-accent: #b4452b;
+  --color-accent-hover: #9c3a23;
+  --color-accent-soft: #f7ebe5;
+  --color-accent-line: #e8cfc4;
+
+  /* --- Semantic status (data / availability only) ----------------------- */
+  --color-status-open: #2e6b4e;
+  --color-status-open-soft: #e8f1ec;
+  --color-status-limited: #a9741c;
+  --color-status-limited-soft: #f8f0df;
+  --color-status-closed: #9e2b2b;
+  --color-status-closed-soft: #f7e8e8;
+
+  /* --- Inverse ---------------------------------------------------------- */
+  --color-night: #15140f;
+  --color-night-soft: #22201a;
+  --color-night-line: #34322a;
+
+  /* --- Typography ------------------------------------------------------- */
+  --font-display: "Instrument Serif", "Times New Roman", serif;
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Arabic families — applied via [dir="rtl"] in base.css */
+  --font-ar-sans: "IBM Plex Sans Arabic", "Geist", ui-sans-serif, sans-serif;
+  --font-ar-display: "Noto Kufi Arabic", "IBM Plex Sans Arabic", sans-serif;
+
+  /* --- Type scale (fluid) ------------------------------------------------ */
+  --text-display-1: clamp(2.75rem, 6.4vw, 5rem);
+  --text-display-1--line-height: 1.02;
+  --text-display-1--letter-spacing: -0.02em;
+
+  --text-display-2: clamp(2.25rem, 4.6vw, 3.75rem);
+  --text-display-2--line-height: 1.06;
+  --text-display-2--letter-spacing: -0.018em;
+
+  --text-display-3: clamp(1.875rem, 3.2vw, 2.75rem);
+  --text-display-3--line-height: 1.1;
+  --text-display-3--letter-spacing: -0.015em;
+
+  --text-title-1: clamp(1.5rem, 2.2vw, 2rem);
+  --text-title-1--line-height: 1.18;
+  --text-title-1--letter-spacing: -0.012em;
+
+  --text-title-2: clamp(1.25rem, 1.6vw, 1.5rem);
+  --text-title-2--line-height: 1.25;
+  --text-title-2--letter-spacing: -0.008em;
+
+  --text-title-3: 1.125rem;
+  --text-title-3--line-height: 1.35;
+
+  --text-body-lg: 1.0625rem;
+  --text-body-lg--line-height: 1.6;
+
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+
+  --text-body-sm: 0.9375rem;
+  --text-body-sm--line-height: 1.55;
+
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.45;
+
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1.3;
+  --text-micro--letter-spacing: 0.12em;
+
+  /* --- Spacing (4px grid; section rhythm is a constraint, not a law) ---- */
+  --spacing-section: clamp(3.5rem, 7vw, 6.5rem);
+  --spacing-block: clamp(2.5rem, 4vw, 4rem);
+  --spacing-gutter: clamp(1.25rem, 4vw, 2.5rem);
+
+  /* --- Radius (restrained — no rounded-card spam) ----------------------- */
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+
+  /* --- Elevation (borders first; shadows only where something floats) --- */
+  --shadow-hairline: 0 0 0 1px var(--color-line);
+  --shadow-lift: 0 1px 2px rgb(21 20 15 / 0.04),
+    0 12px 32px -12px rgb(21 20 15 / 0.14);
+  --shadow-rail: -1px 0 0 var(--color-line);
+  --shadow-pop: 0 2px 6px rgb(21 20 15 / 0.06),
+    0 24px 56px -20px rgb(21 20 15 / 0.22);
+
+  /* --- Motion (explains or enhances, never decorates) ------------------- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.36, 0.64, 1);
+
+  --duration-instant: 120ms;
+  --duration-fast: 180ms;
+  --duration-base: 280ms;
+  --duration-slow: 480ms;
+  --duration-reveal: 760ms;
+
+  /* --- Layering --------------------------------------------------------- */
+  --z-base: 0;
+  --z-sticky: 30;
+  --z-header: 50;
+  --z-dropdown: 60;
+  --z-overlay: 70;
+  --z-modal: 80;
+  --z-toast: 90;
+
+  /* --- Layout ----------------------------------------------------------- */
+  --container-max: 80rem;
+  --container-prose: 44rem;
+  --header-h: 4.25rem;
+  --header-h-mobile: 3.75rem;
+  --touch-min: 44px;
+}
+
+/* =========================================================================
+   Tailwind v4 utilities generated from the tokens above
+   ========================================================================= */
+
+@layer utilities {
+  .container-page {
+    margin-inline: auto;
+    width: 100%;
+    max-width: var(--container-max);
+    padding-inline: var(--spacing-gutter);
+  }
+
+  .container-prose {
+    margin-inline: auto;
+    width: 100%;
+    max-width: var(--container-prose);
+    padding-inline: var(--spacing-gutter);
+  }
+
+  .section-pad {
+    padding-block: var(--spacing-section);
+  }
+
+  .block-pad {
+    padding-block: var(--spacing-block);
+  }
+
+  /* Stacking order — thin wrappers over the --z-* tokens so layering is
+     decided in the design system rather than re-invented per component. */
+  .z-base {
+    z-index: var(--z-base);
+  }
+  .z-sticky {
+    z-index: var(--z-sticky);
+  }
+  .z-header {
+    z-index: var(--z-header);
+  }
+  .z-dropdown {
+    z-index: var(--z-dropdown);
+  }
+  .z-overlay {
+    z-index: var(--z-overlay);
+  }
+  .z-modal {
+    z-index: var(--z-modal);
+  }
+  .z-toast {
+    z-index: var(--z-toast);
+  }
+
+  /* Mono data/label/button voice */
+  .label-micro {
+    font-family: var(--font-mono);
+    font-size: var(--text-micro);
+    line-height: var(--text-micro--line-height);
+    letter-spacing: var(--text-micro--letter-spacing);
+    text-transform: uppercase;
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+    font-weight: 400;
+  }
+
+  .focus-ring {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .hairline {
+    border: 1px solid var(--color-line);
+  }
+
+  .rule-top {
+    border-top: 1px solid var(--color-line);
+  }
+
+  .rule-bottom {
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  /* Hide scrollbars on horizontal scrollers but keep scrolling + a11y */
+  .scroll-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scroll-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  .snap-x-strip {
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+  }
+  .snap-start-item {
+    scroll-snap-align: start;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .text-pretty {
+    text-wrap: pretty;
+  }
+}
