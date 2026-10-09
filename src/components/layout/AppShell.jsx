@@ -13,7 +13,7 @@ import { useLocaleContext } from "../../i18n/context.js";
  * focus on load would silently drop them past both the skip link and the
  * repeated header block.
  */
-function RouteAnnouncer() {
+export function RouteAnnouncer() {
   const { pathname } = useLocation();
   const lastPath = useRef(null);
 

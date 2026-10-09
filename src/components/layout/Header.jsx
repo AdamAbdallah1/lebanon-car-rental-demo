@@ -8,6 +8,7 @@ import { useJourneyLink } from "../../features/search/useJourneyLink.js";
 import Wordmark from "./Wordmark.jsx";
 import Icon from "../ui/Icon.jsx";
 import Button from "../ui/Button.jsx";
+import LanguageSwitch from "./LanguageSwitch.jsx";
 
 const DESKTOP_LINK =
   "relative inline-flex min-h-11 items-center px-1 text-body-sm text-ink-soft transition-colors duration-[180ms] hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
@@ -21,29 +22,6 @@ function ActiveRule({ isActive }) {
         isActive ? "scale-x-100" : "scale-x-0",
       )}
     />
-  );
-}
-
-function LanguageSwitch() {
-  const { locale, setLocale, t } = useLocaleContext();
-  const next = locale === "en" ? "ar" : "en";
-
-  return (
-    <button
-      type="button"
-      onClick={() => setLocale(next)}
-      aria-label={next === "ar" ? t("lang.switchTo") : t("lang.switchToEn")}
-      className={cn(
-        "inline-flex min-h-11 items-center gap-1.5 rounded-md border border-line px-3",
-        "font-mono text-caption text-ink-soft transition-colors duration-[180ms]",
-        "hover:border-ink hover:text-ink",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-      )}
-      data-keep-mono
-    >
-      <Icon name="globe" size={14} className="text-ink-faint" />
-      <span>{next === "ar" ? "العربية" : "EN"}</span>
-    </button>
   );
 }
 

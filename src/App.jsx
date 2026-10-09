@@ -79,6 +79,40 @@ export const routes = [
       },
     ],
   },
+
+  /*
+   * Operations surface — a sibling tree, not a section of the public site.
+   * It has its own shell, its own guard and no public header or footer, and
+   * it is lazily loaded so the storefront never pays for it.
+   */
+  {
+    path: "/admin",
+    lazy: async () => {
+      const mod = await import("./features/admin/AdminRoot.jsx");
+      return { Component: mod.AdminRoot };
+    },
+    children: [
+      {
+        path: "sign-in",
+        lazy: page(() => import("./pages/admin/SignInPage.jsx")),
+      },
+      {
+        path: "bookings",
+        lazy: page(() => import("./pages/admin/BookingsPage.jsx")),
+      },
+      {
+        path: "bookings/:requestId",
+        lazy: page(() => import("./pages/admin/BookingDetailPage.jsx")),
+      },
+      {
+        path: "*",
+        lazy: async () => {
+          const mod = await import("./features/admin/AdminStates.jsx");
+          return { Component: mod.AdminNotFound };
+        },
+      },
+    ],
+  },
 ];
 
 export const router = createBrowserRouter(routes);

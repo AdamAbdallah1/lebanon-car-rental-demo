@@ -7,6 +7,7 @@ import { repositories } from "../lib/repositories/index.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { quoteVehicle } from "../lib/pricing/pricingService.js";
 import { getAvailability } from "../lib/availability/availabilityService.js";
+import { statusLabelKey, statusTone } from "../lib/booking/statusDisplay.js";
 import { availabilityLabelKey } from "../features/fleet/vehicleDisplay.js";
 import { useSearchState } from "../features/search/useSearchState.js";
 import QuoteBreakdown from "../features/booking/QuoteBreakdown.jsx";
@@ -24,25 +25,6 @@ function money(value, locale, currency = "USD") {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-/**
- * Booking status → presentation. Status is data, so it uses the semantic
- * status tokens and a text label, never the brand accent.
- */
-const BOOKING_STATUS_TONE = {
-  pending: "limited",
-  proposed: "limited",
-  confirmed: "available",
-  declined: "closed",
-  cancelled: "closed",
-};
-const BOOKING_STATUS_KEY = {
-  pending: "booking.status.pending",
-  proposed: "booking.status.proposed",
-  confirmed: "booking.status.confirmed",
-  declined: "booking.status.declined",
-  cancelled: "booking.status.cancelled",
-};
 
 /**
  * Journey state that does not fit in the URL — the driver's details and
@@ -580,8 +562,8 @@ export function BookPage() {
                   label={t("booking.status.label")}
                   value={
                     <StatusMark
-                      tone={BOOKING_STATUS_TONE[receiptStatus] ?? "limited"}
-                      label={t(BOOKING_STATUS_KEY[receiptStatus] ?? "booking.status.pending")}
+                      tone={statusTone(receiptStatus)}
+                      label={t(statusLabelKey(receiptStatus))}
                       size="sm"
                     />
                   }

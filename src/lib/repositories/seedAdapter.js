@@ -315,19 +315,8 @@ export const seedAdapter = {
 
   async queryBookingRequests(filters = {}) {
     await wait();
-    let list = seed.bookingRequests;
-    if (filters.status) list = list.filter((b) => b.status === filters.status);
-    if (filters.vehicleId) list = list.filter((b) => b.vehicleId === filters.vehicleId);
-    if (filters.search) {
-      const needle = filters.search.trim().toLowerCase();
-      list = list.filter((b) =>
-        [b.reference, b.vehicleName, b.customer?.fullName, b.customer?.email, b.customer?.phone]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(needle)),
-      );
-    }
-    if (filters.limit) list = list.slice(0, filters.limit);
-    return list;
+    const { applyBookingFilters } = await import("../../lib/booking/bookingQuery.js");
+    return applyBookingFilters(seed.bookingRequests, filters);
   },
 
   async createInquiry(payload) {

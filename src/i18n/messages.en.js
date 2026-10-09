@@ -410,4 +410,172 @@ export const en = {
   "booking.availability.onRequest": "Available on request.",
   "booking.availability.note":
     "An indication only — availability is confirmed when we reply.",
+
+  /* ── Operations surface (Phase 3, Stage 2) ─────────────────────────── */
+  "admin.brand": "Operations",
+  "admin.signOut": "Sign out",
+  "admin.signedInAs": "Signed in as",
+  "admin.role.admin": "Administrator",
+  "admin.role.agent": "Booking agent",
+  "admin.role.editor": "Content editor",
+  "admin.role.none": "No role assigned",
+  "admin.nav.label": "Operations sections",
+  "admin.nav.bookings": "Booking requests",
+  "admin.emulator.label": "Emulator",
+  "admin.emulator.title":
+    "Connected to the local Firebase Emulator Suite, not to a live project.",
+
+  "admin.unavailable.kicker": "Not configured",
+  "admin.unavailable.title": "The operations area needs a Firebase project",
+  "admin.unavailable.body":
+    "Sign-in is backed by Firebase Authentication, so without a project there is nothing to sign in to. The public site keeps running on local demo data — only this area is closed.",
+  "admin.unavailable.note":
+    "Copy .env.example to .env.local and set VITE_FIREBASE_EMULATOR=1. No project, no credentials and no billing are required for any of it.",
+
+  "admin.error.kicker": "Authentication unavailable",
+  "admin.error.title": "Sign-in could not be reached",
+  "admin.error.body":
+    "The Firebase Authentication service did not respond. Nothing was changed — try again once it is reachable.",
+
+  "admin.forbidden.kicker": "No access",
+  "admin.forbidden.title": "Your role cannot open this section",
+  "admin.forbidden.body":
+    "You are signed in as {role}. Booking requests are handled by administrators and booking agents; a content editor has no access to customer records.",
+  "admin.notFound.kicker": "Not found",
+  "admin.notFound.title": "That operations page does not exist",
+  "admin.notFound.body": "The address may be mistyped, or the section may have moved.",
+
+  "admin.signin.title": "Staff sign-in",
+  "admin.signin.body":
+    "Administrators, booking agents and content editors sign in here. Roles are granted by an administrator, never chosen at the door.",
+  "admin.signin.email": "Email address",
+  "admin.signin.password": "Password",
+  "admin.signin.submit": "Sign in",
+  "admin.signin.submitting": "Signing in…",
+  "admin.signin.backToSite": "Back to the site",
+  "admin.signin.note":
+    "This demo has no password recovery — that flow belongs to Firebase and is not implemented here. Create the account in the Firebase console, then grant a role with npm run roles:set.",
+  "admin.signin.validation.emailRequired": "Enter your email address.",
+  "admin.signin.validation.emailInvalid": "Enter a valid email address.",
+  "admin.signin.validation.passwordRequired": "Enter your password.",
+  "admin.signin.error.credentials":
+    "That email address and password do not match an account.",
+  "admin.signin.error.email": "Enter a valid email address.",
+  "admin.signin.error.password": "Enter your password.",
+  "admin.signin.error.throttled":
+    "Too many attempts. Wait a moment before trying again.",
+  "admin.signin.error.network":
+    "The sign-in service could not be reached. Check the connection and try again.",
+  "admin.signin.error.disabled":
+    "This account has been disabled. Ask an administrator to re-enable it.",
+  "admin.signin.error.config": "Authentication is not configured for this deployment.",
+  "admin.signin.error.generic": "Sign-in failed. Try again.",
+
+  "admin.bookings.title": "Booking requests",
+  "admin.bookings.subtitle":
+    "Requests from the public booking form, newest first. Every decision is recorded against your account.",
+  "admin.bookings.filter.label": "Filter by status",
+  "admin.bookings.filter.all": "All",
+  "admin.bookings.searchLabel": "Search booking requests",
+  "admin.bookings.searchPlaceholder": "Reference, name, email or vehicle",
+  "admin.bookings.col.reference": "Reference",
+  "admin.bookings.col.status": "Status",
+  "admin.bookings.col.customer": "Customer",
+  "admin.bookings.col.vehicle": "Vehicle",
+  "admin.bookings.col.dates": "Dates",
+  "admin.bookings.col.total": "Total incl. VAT",
+  "admin.bookings.col.updated": "Last updated",
+  "admin.bookings.requested": "Requested",
+  "admin.bookings.empty": "No booking requests yet",
+  "admin.bookings.emptyHint": "Requests arrive from the public booking form.",
+  "admin.bookings.emptyFiltered": "No requests match these filters",
+  "admin.bookings.emptyFilteredHint":
+    "Clear the filters, or search for a different reference, name or vehicle.",
+  "admin.bookings.refresh": "Refresh",
+  "admin.bookings.clearFilters": "Clear filters",
+  "admin.bookings.showing": "Showing {count} request",
+  "admin.bookings.showing_plural": "Showing {count} requests",
+  "admin.bookings.capped": "the {count}-request cap applies",
+  "admin.bookings.error": "The request list could not be loaded from the data service.",
+
+  "admin.action.confirm": "Confirm",
+  "admin.action.propose": "Offer alternative dates",
+  "admin.action.decline": "Decline",
+  "admin.action.cancel": "Cancel booking",
+
+  "admin.detail.title": "Booking request",
+  "admin.detail.back": "All booking requests",
+  "admin.detail.reference": "Reference",
+  "admin.detail.submittedAt": "Submitted",
+  "admin.detail.customer": "Customer",
+  "admin.detail.name": "Name",
+  "admin.detail.email": "Email",
+  "admin.detail.phone": "Phone",
+  "admin.detail.locale": "Form language",
+  "admin.detail.localeEn": "English",
+  "admin.detail.localeAr": "Arabic",
+  "admin.detail.journey": "Journey",
+  "admin.detail.vehicle": "Vehicle",
+  "admin.detail.location": "Pick-up point",
+  "admin.detail.requestedDates": "Requested",
+  "admin.detail.alternativeDates": "Alternative offered",
+  "admin.detail.bookedDates": "Booked",
+  "admin.detail.days": "Rental days",
+  "admin.detail.customerNote": "Note from the customer",
+  "admin.detail.price": "Price snapshot",
+  "admin.detail.priceNote":
+    "Priced by the server when the request was submitted, and repriced at confirmation if the dates changed.",
+  "admin.detail.history.title": "History",
+  "admin.detail.history.empty":
+    "No decisions yet — this request is waiting for review.",
+  "admin.detail.history.submitted": "Request submitted",
+  "admin.detail.history.requestedDates": "Dates requested",
+  "admin.detail.history.dates": "Dates",
+  "admin.detail.history.was": "was",
+  "admin.detail.actions": "Decision",
+  "admin.detail.actions.none":
+    "This request has reached a final state. Nothing further can be applied to it.",
+  "admin.detail.actions.readOnly":
+    "Your role can read this request but not decide it.",
+  "admin.detail.pickupDate": "Alternative pick-up",
+  "admin.detail.returnDate": "Alternative return",
+  "admin.detail.note": "Note",
+  "admin.detail.noteHint":
+    "Stored with the decision and visible to staff only. Optional.",
+  "admin.detail.datesLegend": "Dates to confirm",
+  "admin.detail.useProposed": "Confirm the alternative dates:",
+  "admin.detail.useOriginal": "Confirm the dates originally requested:",
+  "admin.detail.validation.datesRequired": "Choose both alternative dates.",
+  "admin.detail.validation.range": "The return date must be on or after the pick-up date.",
+  "admin.detail.validation.past": "The pick-up date cannot be in the past.",
+  "admin.detail.confirmBody.confirm":
+    "This reserves the vehicle for the selected dates. The server re-prices the booking, checks every other confirmed request and writes the block in one transaction — if the vehicle has meanwhile been taken, the confirmation is refused.",
+  "admin.detail.confirmBody.propose":
+    "Counter-offer different dates. Nothing is reserved until you confirm the booking.",
+  "admin.detail.confirmBody.decline":
+    "Decline this request. The dates stay free and the decision cannot be undone.",
+  "admin.detail.confirmBody.cancel":
+    "Cancel a confirmed booking and release the vehicle for those dates.",
+  "admin.detail.apply": "Apply decision",
+  "admin.detail.working": "Applying…",
+  "admin.detail.dismiss": "Not now",
+  "admin.detail.done.confirmed":
+    "Confirmed. The vehicle is now blocked for these dates.",
+  "admin.detail.done.declined": "Declined. The dates remain free.",
+  "admin.detail.done.proposed":
+    "Alternative dates offered. Nothing is reserved until you confirm.",
+  "admin.detail.done.cancelled":
+    "Cancelled. The vehicle is available again for these dates.",
+  "admin.detail.error.conflict":
+    "That vehicle is already committed for those dates. Reload the request to see its current state.",
+  "admin.detail.error.stale": "This request has already changed. Reload it and try again.",
+  "admin.detail.error.dates": "Enter a valid pick-up and return date.",
+  "admin.detail.error.pastDate": "The pick-up date cannot be in the past.",
+  "admin.detail.error.note": "The note is too long.",
+  "admin.detail.error.notFound": "This request no longer exists.",
+  "admin.detail.error.forbidden": "Your role is not allowed to make this decision.",
+  "admin.detail.error.unauthenticated": "Your session has expired. Sign in again.",
+  "admin.detail.error.generic":
+    "The decision could not be applied. Nothing was changed — try again.",
+  "admin.detail.notFound": "That booking request could not be found.",
 };

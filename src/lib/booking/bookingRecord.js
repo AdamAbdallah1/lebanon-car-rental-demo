@@ -282,22 +282,13 @@ export function buildBookingRecord({
     dailyRate: quote.dailyRate,
 
     // Price snapshot — recomputed by this server, never taken from the client.
+    // Stored whole rather than field-by-field so it stays shape-compatible
+    // with a `PricingResult`, which is what `QuoteBreakdown` renders.
     estimatedTotal: quote.total,
     totalWithVat: quote.totalWithVat,
     deposit: quote.deposit,
     currency: quote.currency,
-    quote: {
-      baseTotal: quote.baseTotal,
-      discount: quote.discount,
-      subtotal: quote.subtotal,
-      locationFee: quote.locationFee,
-      vat: quote.vat,
-      total: quote.total,
-      totalWithVat: quote.totalWithVat,
-      extras: quote.extras,
-      mileage: quote.mileage,
-      insurance: quote.insurance,
-    },
+    quote: { ...quote },
 
     customer: { ...input.customer },
     notes: input.notes,

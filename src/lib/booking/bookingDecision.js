@@ -289,18 +289,10 @@ export function applyDecision({
     changes.totalWithVat = quote.totalWithVat;
     changes.deposit = quote.deposit;
     changes.currency = quote.currency;
-    changes.quote = {
-      baseTotal: quote.baseTotal,
-      discount: quote.discount,
-      subtotal: quote.subtotal,
-      locationFee: quote.locationFee,
-      vat: quote.vat,
-      total: quote.total,
-      totalWithVat: quote.totalWithVat,
-      extras: quote.extras,
-      mileage: quote.mileage,
-      insurance: quote.insurance,
-    };
+    // Same shape as the price snapshot taken at submission — see
+    // `buildBookingRecord`, which stores the whole pricing result so the
+    // admin price panel can render it without re-deriving anything.
+    changes.quote = { ...quote };
 
     block = {
       vehicleId: request.vehicleId,

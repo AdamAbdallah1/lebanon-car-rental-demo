@@ -86,6 +86,82 @@ document to decide who someone is. Editing local storage changes nothing.
 
 ---
 
+## Staff console (`/admin`)
+
+The console is a separate route group from the public site — it does not share
+the public shell, header or footer, and it is guarded by `AdminRoot`.
+
+```
+/admin                → redirects to /admin/bookings
+/admin/sign-in        → sign-in (deliberately outside the shell)
+/admin/bookings       → the queue (the work surface)
+/admin/bookings/:id  → one request + its history
+/admin/*              → AdminNotFound
+```
+
+`App.jsx` lazy-loads `AdminRoot`, so none of this code (and none of the Firebase
+Auth SDK) is downloaded by a public visitor.
+
+### Session states
+
+`SessionProvider` exposes one status and the UI renders one honest thing for
+each. There is no state that looks signed-in while Firebase is silent:
+
+| Status | Meaning | What renders |
+| --- | --- | --- |
+| `unavailable` | no Firebase config in `.env.local` | `AdminUnavailable` — an explainer and a link back to the public site. **No fake sign-in.** |
+| `loading` | `onAuthStateChanged` has not answered yet | `AdminLoading` |
+| `authenticated` | a real Firebase user with a token | the shell, role-narrowed |
+| `anonymous` | no user | redirect to `/admin/sign-in`, remembering where they were headed |
+| `error` | the listener failed | `AdminError` with the code |
+
+`signIn` / `signOut` are the only writes. Nothing sets a role, a session or a
+capability in local storage.
+
+### The queue
+
+`BookingsPage` is a work table, not a dashboard: status tabs with counts, a
+search over reference / customer / vehicle, and one row per request that opens
+its detail. It paginates nothing and shows no aggregate — the cap on how many
+documents were fetched (`500`) is stated in the UI rather than hidden, and an
+empty inbox and a failed load are different screens with different actions.
+
+Filters are applied by the shared `applyBookingFilters`
+(`src/lib/booking/bookingQuery.js`) on the server-narrowed result, so the
+Firestore query, the repository and the UI cannot disagree about what a filter
+means.
+
+### Decisions
+
+`BookingDetailPage` renders the customer, the journey, the price snapshot the
+server quoted, and the audit trail. Every action goes through
+`submitBookingDecision` — the client cannot confirm, decline, counter-offer or
+cancel directly against Firestore, and `rules` denies those writes anyway.
+
+* Dates must be a valid range before a request is sent.
+* A confirm that conflicts is refused by the server transaction; the UI reports
+  the reason and leaves the request untouched.
+* A declined request is terminal and offers no further actions.
+* Each decision appends an audit entry (who, when, from → to, note, dates) and
+  the panel reloads the document rather than assuming the write landed.
+
+### Roles and navigation
+
+`capabilities.js` is the single source of truth for what a role may do, in both
+the nav and the route guard:
+
+```js
+can("admin",  "bookings.decide")  // true
+can("editor", "bookings.decide") // false  → AdminForbidden, not a secret 404
+can("agent",  "content.write")   // false  → AdminForbidden
+```
+
+A role that cannot open a section sees a page that says so; it does not see a
+broken shell. Sections that do not exist yet (fleet, content) are absent from
+`ADMIN_SECTIONS`, so the nav only ever lists routes that actually render.
+
+---
+
 ## Security rules
 
 `firestore.rules` is deployed with `firebase deploy --only firestore:rules`.
@@ -120,6 +196,12 @@ npm test              # rules (33) + callables (24) against the Emulator Suite
 npm run test:rules    # firestore.rules only
 npm run test:functions
 ```
+
+Plus, against the Emulator Suite with a real staff account: the console's full
+loop — sign-in and rejection, the queue, all three decisions, the conflict
+refusal, the role boundary, RTL, and no horizontal overflow at 390/768/1440 —
+driven headlessly. That run is a QA harness, not a committed test, so it is not
+in `npm test`; what is committed here is what `npm test` covers.
 
 `tests/rules.test.mjs` loads the real `firestore.rules` into the emulator and
 asserts what a *client* may do — including that an admin cannot forge a booking
@@ -157,9 +239,31 @@ real project would insert demo records into a production database.
 To create a staff user locally:
 
 ```bash
-# create the account (console → Authentication → Users, or the Auth REST API), then:
+# 1. create the account against the Auth emulator (REST; no console exists locally)
+curl -s -X POST "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key" \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"you@example.com","password":"…","returnSecureToken":true}'
+
+# 2. grant the role
 npm run roles:set -- you@example.com admin --apply
 ```
+
+`demo-key` is the fixed API key the Auth emulator accepts for the string
+project id — it is not a credential for any real project. The script refuses to
+mint claims without an emulator host, and it is a dry run without `--apply`.
+
+To exercise the console end to end, this is the full recipe:
+
+```bash
+npm run emulators:start                   # terminal 1
+npm run emulators:seed                    # terminal 2
+cp .env.example .env.local                # then set VITE_FIREBASE_EMULATOR=1
+npm run functions:build                   # terminal 3, once
+npm run dev                               # terminal 3
+```
+
+Delete or blank `.env.local` when finished — committed by accident, the config
+keys would make the app try to reach a real project.
 
 ---
 
@@ -300,13 +404,18 @@ Read from `.env.local`, never committed:
 
 ## Known limitations
 
-* **No live project has been exercised.** Rules, callables, roles and index
-  queries are verified against the Emulator Suite only. Deploying to a real
-  project still requires the steps in *Connecting a real project*.
+* **No live project has been exercised.** Rules, callables, roles, sign-in and
+  the console's decision path are verified against the Emulator Suite only.
+  Deploying to a real project still requires the steps in *Connecting a real
+  project*.
 * **The catalogue has no production writer yet.** `emulators:seed` is
   emulator-only by design — it clears the customer collections, which would be
   destructive on a live database. Populating a real project's catalogue is a
   deliberate one-off until Stage 4's content management lands.
+* **The console is booking-only.** `/admin` covers the inbox and the decision
+  path. Vehicle, pricing and content editing are not built yet, so the catalogue
+  of a live project can currently only be written by `emulators:seed` (local) or
+  by a scripted import.
 * **App Check is not enforced** (see above).
 * **`getBookingStatus` has no rate limiting.** References are second-resolution
   and generated server-side, so they are not enumerable, but an abusive caller

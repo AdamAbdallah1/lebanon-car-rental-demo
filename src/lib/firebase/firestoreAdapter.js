@@ -166,8 +166,25 @@ export const firestoreAdapter = {
   },
 
   async queryBookingRequests(filters = {}) {
-    if (filters.status) return list("bookingRequests", { whereClause: ["status", "==", filters.status] });
-    return list("bookingRequests");
+    const { db, collection, query, where, orderBy, limit, getDocs } = await fs();
+    const constraints = [];
+
+    // Narrow server-side where the composite indexes already cover the query
+    // (`firestore.indexes.json`). The vehicle filter deliberately skips
+    // `orderBy` rather than inventing an index nobody has deployed; the shared
+    // filter re-sorts either way.
+    if (filters.status) constraints.push(where("status", "==", filters.status));
+    if (filters.vehicleId) constraints.push(where("vehicleId", "==", filters.vehicleId));
+    if (!filters.vehicleId) constraints.push(orderBy("createdAt", "desc"));
+    if (filters.max) constraints.push(limit(filters.max));
+
+    const snap = await getDocs(
+      constraints.length
+        ? query(collection(db, "bookingRequests"), ...constraints)
+        : collection(db, "bookingRequests"),
+    );
+    const { applyBookingFilters } = await import("../../lib/booking/bookingQuery.js");
+    return applyBookingFilters(snapshotToList(snap), filters);
   },
 
   async createInquiry(payload) {
