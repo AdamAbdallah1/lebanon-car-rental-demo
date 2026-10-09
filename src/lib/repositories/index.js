@@ -27,6 +27,8 @@ const METHOD_NAMES = [
   "getLocationGroups",
   "getLocationById",
   "createBookingRequest",
+  "getBookingStatus",
+  "submitBookingDecision",
   "getBookingById",
   "queryBookingRequests",
   "createInquiry",

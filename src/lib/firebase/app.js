@@ -1,4 +1,5 @@
 import { FirebaseNotConfiguredError, firebaseConfig, isFirebaseConfigured, missingFirebaseEnvKeys } from "./config.js";
+import { EMULATOR_PORTS, announceEmulator, emulatorEnabled, emulatorHost } from "./emulator.js";
 
 /**
  * Firebase is loaded lazily and only when configuration exists.
@@ -31,8 +32,15 @@ export async function getFirestore() {
   if (!dbPromise) {
     dbPromise = (async () => {
       const app = await getFirebaseApp();
-      const { getFirestore: openFirestore } = await import("firebase/firestore");
-      return openFirestore(app);
+      const { getFirestore: openFirestore, connectFirestoreEmulator } = await import(
+        "firebase/firestore"
+      );
+      const db = openFirestore(app);
+      if (emulatorEnabled) {
+        connectFirestoreEmulator(db, emulatorHost, EMULATOR_PORTS.firestore);
+        announceEmulator("Firestore");
+      }
+      return db;
     })().catch((error) => {
       dbPromise = null;
       throw error;

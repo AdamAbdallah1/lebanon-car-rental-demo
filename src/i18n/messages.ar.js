@@ -188,6 +188,8 @@ export const ar = {
   "booking.status.pending": "قيد المراجعة",
   "booking.status.confirmed": "مؤكّد",
   "booking.status.declined": "مرفوض",
+  "booking.status.proposed": "تم اقتراح تواريخ بديلة",
+  "booking.status.cancelled": "ملغى",
 
   "locations.title": "الاستلام والإرجاع",
   "locations.lede":

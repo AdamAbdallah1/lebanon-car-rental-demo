@@ -1,0 +1,290 @@
+rules_version = '2';
+
+/**
+ * Cedars Drive — Firestore security rules.
+ *
+ * Boundary rules for this project:
+ *
+ *   • NO rule anywhere is `allow read, write: if true`. Public collections are
+ *     readable by anyone and writable only by staff; private collections are
+ *     readable only by staff; server-only collections are not writable by any
+ *     client at all.
+ *   • Roles come from Firebase Auth **custom claims**, which only the Admin SDK
+ *     can mint. Nothing here trusts a client-writable `users/roles` document.
+ *   • Booking status, price and idempotency are never accepted from a client:
+ *     `bookingRequests` is not client-writable at all. Creation and review
+ *     decisions happen in callable Cloud Functions (see `functions/src/`),
+ *     which run with the Admin SDK and therefore bypass these rules — that is
+ *     exactly why the rules below deny client writes outright.
+ *   • `blockPeriods` is public-readable because availability is a public
+ *     fact, and server-writable only. The function that writes it is
+ *     constrained to a fixed field set containing no customer data.
+ *
+ * Deploying: see § "Security rules" in src/lib/firebase/README.md.
+ */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------- roles
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return signedIn() ? request.auth.token.role : null;
+    }
+
+    // admin    — every operation
+    // editor   — content + fleet authoring, no booking decisions
+    // agent    — booking review, read-only content
+    function isAdmin()  { return role() == 'admin'; }
+    function isEditor() { return role() == 'editor'; }
+    function isAgent()  { return role() == 'agent'; }
+
+    function canManageContent() {
+      return isAdmin() || isEditor();
+    }
+
+    // Customer records are visible only to the roles that act on them.
+    // Editors author content; they have no business reading personal data.
+    function canManageBookings() {
+      return isAdmin() || isAgent();
+    }
+
+    // ------------------------------------------------------------- helpers
+    function isLocalized(value) {
+      return value is map
+        && value.keys().hasAll(['en'])
+        && value['en'] is string
+        && (!value.keys().hasAny(['ar']) || value['ar'] is string);
+    }
+
+    function isNonEmptyString(value, maxLen) {
+      return value is string && value.size() > 0 && value.size() <= maxLen;
+    }
+
+    function isMoney(value) {
+      return value is number && value >= 0 && value <= 1000000;
+    }
+
+    function inStatusSet(value, allowed) {
+      return value is string && allowed.hasAny([value]);
+    }
+
+    function isIsoDate(value) {
+      return value is string && value.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function vehicleMutableKeys() {
+      return [
+        'slug', 'status', 'categoryId', 'make', 'model', 'year', 'name',
+        'trimName', 'bodyType', 'description', 'pricing', 'deposit',
+        'mileage', 'insurance', 'inclusionIds', 'availability',
+        'locationIds', 'media', 'featured', 'sortOrder', 'specs', 'updatedAt'
+      ];
+    }
+
+    function validVehicle(data, isCreate) {
+      return isNonEmptyString(data.slug, 80)
+        && inStatusSet(data.status, ['active', 'draft', 'archived'])
+        && isNonEmptyString(data.categoryId, 60)
+        && isNonEmptyString(data.make, 60)
+        && isNonEmptyString(data.model, 60)
+        && data.year is number
+        && isLocalized(data.name)
+        && isLocalized(data.description)
+        && isLocalized(data.bodyType)
+        && data.pricing is map
+        && data.pricing.keys().hasAll(['currency', 'daily'])
+        && data.pricing['currency'] is string
+        && data.pricing['currency'].size() == 3
+        && isMoney(data.pricing['daily'])
+        && isMoney(data.deposit)
+        && data.mileage is map
+        && data.specs is map
+        && data.specs.keys().hasAll(['seats', 'doors', 'luggage'])
+        && data.specs['seats'] is number
+        && data.locationIds is list
+        && data.inclusionIds is list
+        && data.media is list
+        && data.featured is bool
+        && data.sortOrder is number
+        && isNonEmptyString(data.availability, 20)
+        && ('createdAt' in data)
+        && (!isCreate || ('updatedAt' in data));
+    }
+
+    // ------------------------------------------------------ public catalogue
+    // Readable by anyone (it is the storefront); authored only by staff.
+
+    match /vehicles/{id} {
+      allow read: if true;
+      allow create: if canManageContent()
+        && validVehicle(request.resource.data, true);
+      allow update: if canManageContent()
+        && validVehicle(request.resource.data, false)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(vehicleMutableKeys());
+      allow delete: if isAdmin();
+    }
+
+    match /categories/{id} {
+      allow read: if true;
+      allow create, update: if canManageContent()
+        && isLocalized(request.resource.data.name)
+        && inStatusSet(request.resource.data.status, ['active', 'draft', 'archived'])
+        && request.resource.data.sortOrder is number;
+      allow delete: if isAdmin();
+    }
+
+    match /inclusions/{id} {
+      allow read: if true;
+      allow create, update: if canManageContent()
+        && isLocalized(request.resource.data.name);
+      allow delete: if isAdmin();
+    }
+
+    match /locations/{id} {
+      allow read: if true;
+      allow create, update: if canManageContent()
+        && isLocalized(request.resource.data.name)
+        && isNonEmptyString(request.resource.data.group, 40)
+        && inStatusSet(request.resource.data.status, ['active', 'draft', 'archived'])
+        && request.resource.data.serviceFee is number
+        && request.resource.data.serviceFee >= 0
+        && request.resource.data.sortOrder is number;
+      allow delete: if isAdmin();
+    }
+
+    match /locationGroups/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /ratePlans/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.vatRate is number
+        && request.resource.data.vatRate >= 0
+        && request.resource.data.vatRate <= 1;
+      allow delete: if isAdmin();
+    }
+
+    match /offers/{id} {
+      allow read: if true;
+      allow create, update: if canManageContent()
+        && isLocalized(request.resource.data.title)
+        && isLocalized(request.resource.data.body)
+        && inStatusSet(request.resource.data.status, ['active', 'draft', 'archived']);
+      allow delete: if isAdmin();
+    }
+
+    match /services/{id} {
+      allow read: if true;
+      allow create, update: if canManageContent()
+        && isLocalized(request.resource.data.title)
+        && isLocalized(request.resource.data.body)
+        && inStatusSet(request.resource.data.status, ['active', 'draft', 'archived']);
+      allow delete: if isAdmin();
+    }
+
+    match /faqs/{id} {
+      allow read: if true;
+      allow create, update: if canManageContent()
+        && isLocalized(request.resource.data.question)
+        && isLocalized(request.resource.data.answer)
+        && request.resource.data.sortOrder is number;
+      allow delete: if isAdmin();
+    }
+
+    match /homeSections/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && isNonEmptyString(request.resource.data.type, 40)
+        && request.resource.data.enabled is bool
+        && request.resource.data.sortOrder is number;
+      allow delete: if isAdmin();
+    }
+
+    match /navigation/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.header is list
+        && request.resource.data.footer is list;
+    }
+
+    match /seo/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.title is string
+        && request.resource.data.title.size() <= 70
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 170;
+    }
+
+    match /siteSettings/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.vatRate is number
+        && request.resource.data.vatRate >= 0
+        && request.resource.data.vatRate <= 1
+        && request.resource.data.contact is map
+        && request.resource.data.contact.email is string;
+    }
+
+    match /rentalTerms/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.sections is list;
+    }
+
+    match /mediaAssets/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Availability is a public fact (the storefront shows it), but it is
+    // derived server-side from confirmed bookings. No client may write it.
+    match /blockPeriods/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ----------------------------------------------------- private records
+    // Reads need a staff role; every write goes through a callable function,
+    // so no client can set a status, a price or an idempotency key here.
+    match /bookingRequests/{id} {
+      allow read: if canManageBookings();
+      allow write: if false;
+    }
+
+    match /inquiries/{id} {
+      allow read: if canManageBookings();
+      allow create: if isNonEmptyString(request.resource.data.name, 120)
+        && request.resource.data.email is string
+        && request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+        && request.resource.data.message is string
+        && request.resource.data.message.size() <= 4000
+        && (!('status' in request.resource.data)
+            || request.resource.data.status == 'new');
+      allow update, delete: if false;
+    }
+
+    // Idempotency and reference markers are written by the create function
+    // only — the guarantees they enforce must never come from a client.
+    match /requestIdempotency/{id} {
+      allow read, write: if false;
+    }
+
+    match /requestReferences/{id} {
+      allow read, write: if false;
+    }
+
+    // ------------------------------------------------------ catch-all deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

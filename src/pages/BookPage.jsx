@@ -26,6 +26,25 @@ function money(value, locale, currency = "USD") {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
+ * Booking status → presentation. Status is data, so it uses the semantic
+ * status tokens and a text label, never the brand accent.
+ */
+const BOOKING_STATUS_TONE = {
+  pending: "limited",
+  proposed: "limited",
+  confirmed: "available",
+  declined: "closed",
+  cancelled: "closed",
+};
+const BOOKING_STATUS_KEY = {
+  pending: "booking.status.pending",
+  proposed: "booking.status.proposed",
+  confirmed: "booking.status.confirmed",
+  declined: "booking.status.declined",
+  cancelled: "booking.status.cancelled",
+};
+
+/**
  * Journey state that does not fit in the URL — the driver's details and
  * which step they reached. It never leaves the browser: `sessionStorage` is
  * cleared with the tab, nothing is sent anywhere, and the vehicle, location
@@ -187,6 +206,37 @@ export function BookPage() {
   const sendingRef = useRef(false);
   const stepHeadingRef = useRef(null);
   const previousStepRef = useRef(step);
+
+  /**
+   * Re-read the authoritative status for a reference.
+   *
+   * What the server returned at submission is preserved in `receipt` and is
+   * always `pending` — only a staff decision can change that, so this page
+   * never *claims* a confirmation. This effect exists so that it can also
+   * never *stall*: if someone has reviewed the request since, or the customer
+   * comes back hours later, the tab shows the backend's state rather than a
+   * cached copy. If the lookup fails, the server-issued receipt stands.
+   */
+  const [liveStatus, setLiveStatus] = useState(null);
+  const receiptReference = receipt?.reference ?? null;
+  useEffect(() => {
+    if (!receiptReference) return undefined;
+    let cancelled = false;
+    repositories
+      .getBookingStatus(receiptReference)
+      .then((status) => {
+        if (!cancelled) setLiveStatus(status);
+      })
+      .catch(() => {
+        if (!cancelled) setLiveStatus(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [receiptReference]);
+
+  /** Authoritative status first; the server-issued receipt is the fallback. */
+  const receiptStatus = liveStatus?.status ?? receipt?.status ?? "pending";
 
   const { data, loading, error, reload } = useAsyncData(async () => {
     const [vehicles, categories, locations, blocks, ratePlans] = await Promise.all([
@@ -374,46 +424,22 @@ export function BookPage() {
         return;
       }
 
+      // Send intent only. Price, availability, status, reference and any
+      // de-duplication are decided server-side (`functions/src/create.mjs`):
+      // this form has no way to tell the backend what the total is, and a
+      // forged payload would be re-priced from the committed rate plan anyway.
       const record = await repositories.createBookingRequest({
         vehicleId: form.vehicleId,
-        vehicleName: vehicle ? pickLocalized(vehicle.name, locale, vehicle.model) : null,
-        categoryId: vehicle?.categoryId ?? null,
         pickupLocationId: form.pickupLocationId,
-        returnLocationId: form.pickupLocationId,
-        locationName: pickupLocation
-          ? pickLocalized(pickupLocation.shortName ?? pickupLocation.name, locale)
-          : null,
         pickupDate: form.pickupDate,
         returnDate: form.returnDate,
-        days: quote?.days ?? null,
-        dailyRate: quote?.dailyRate ?? null,
-        estimatedTotal: quote?.total ?? null,
-        totalWithVat: quote?.totalWithVat ?? null,
-        deposit: quote?.deposit ?? null,
-        currency: quote?.currency ?? "USD",
-        quote: quote
-          ? {
-              baseTotal: quote.baseTotal,
-              discount: quote.discount,
-              subtotal: quote.subtotal,
-              locationFee: quote.locationFee,
-              vat: quote.vat,
-              total: quote.total,
-              totalWithVat: quote.totalWithVat,
-              extras: quote.extras,
-              mileage: quote.mileage,
-              insurance: quote.insurance,
-            }
-          : null,
         customer: {
           fullName: form.fullName.trim(),
           email: form.email.trim(),
           phone: form.phone.trim(),
         },
         notes: form.notes.trim() || null,
-        source: "public-site",
         locale,
-        availabilityCheckedAt: new Date().toISOString(),
       });
 
       clearSession(DRAFT_KEY);
@@ -421,8 +447,11 @@ export function BookPage() {
       setReceipt(record);
       setStep("confirmation");
       window.scrollTo({ top: 0, behavior: "auto" });
-    } catch {
-      setSubmitError(t("booking.error.submit"));
+    } catch (error) {
+      // The server answers with a stable machine code; the sentence here is
+      // ours, localized, never its prose.
+      if (error?.code === "vehicle-unavailable") setConflict(true);
+      else setSubmitError(t("booking.error.submit"));
     } finally {
       sendingRef.current = false;
       setSubmitting(false);
@@ -549,7 +578,13 @@ export function BookPage() {
                 ) : null}
                 <SummaryRow
                   label={t("booking.status.label")}
-                  value={t("booking.status.pending")}
+                  value={
+                    <StatusMark
+                      tone={BOOKING_STATUS_TONE[receiptStatus] ?? "limited"}
+                      label={t(BOOKING_STATUS_KEY[receiptStatus] ?? "booking.status.pending")}
+                      size="sm"
+                    />
+                  }
                 />
               </dl>
 

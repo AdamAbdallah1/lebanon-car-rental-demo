@@ -13,8 +13,13 @@ import { FirebaseNotConfiguredError } from "./config.js";
  *   blockPeriods · ratePlans · homeSections · navigation · services ·
  *   offers · faqs · rentalTerms · siteSettings · seo
  *
- * Writes are intentionally absent from the public site in Phase 1 —
- * mutations belong to the admin and will be gated by role claims.
+ * Writes on the public site go one of two ways:
+ *   • content and fleet data  → direct client writes, gated by role claims in
+ *     `firestore.rules` and shaped by this adapter;
+ *   • booking requests        → callable Cloud Functions only. Price,
+ *     availability, status, reference and idempotency are decided server-side
+ *     (`functions/src/`), because `firestore.rules` denies client writes to
+ *     `bookingRequests` outright.
  */
 
 async function fs() {
@@ -131,23 +136,29 @@ export const firestoreAdapter = {
     return readOne("locations", id);
   },
 
+  /**
+   * Public booking creation.
+   *
+   * Delegates entirely to the callable: the client sends intent (which car,
+   * which dates, which counter, who is asking) and the server answers with a
+   * record it priced, de-duplicated and referenced itself. Rules deny writing
+   * this collection directly, so there is no code path that skips the server.
+   */
   async createBookingRequest(payload) {
-    const { db, collection, addDoc, serverTimestamp, doc } = await fs();
-    const now = serverTimestamp();
-    const reference = `CD-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
-    const record = {
-      ...payload,
-      reference,
-      status: "pending",
-      createdAt: now,
-      updatedAt: now,
-    };
-    const created = await addDoc(collection(db, "bookingRequests"), record);
-    // Stable, human-shareable id alongside the auto id.
-    await import("firebase/firestore").then(({ updateDoc }) =>
-      updateDoc(doc(db, "bookingRequests", created.id), { publicId: created.id }),
-    );
-    return { id: created.id, ...record, status: "pending" };
+    const { callFunction } = await import("./functions.js");
+    return callFunction("createBookingRequest", payload);
+  },
+
+  /** Authoritative state for one reference — no customer data returned. */
+  async getBookingStatus(reference) {
+    const { callFunction } = await import("./functions.js");
+    return callFunction("getBookingStatus", { reference });
+  },
+
+  /** Staff review action; server-enforced role claim and transition table. */
+  async submitBookingDecision(input) {
+    const { callFunction } = await import("./functions.js");
+    return callFunction("submitBookingDecision", input);
   },
 
   async getBookingById(id) {
@@ -211,7 +222,10 @@ export const firestoreAdapter = {
   },
 
   async getSeo(path) {
-    return readOne("seo", path === "/" ? "home" : path);
+    // Document ids cannot contain `/`, so the leading slash is dropped and the
+    // root route keeps its own id. The seed script writes the same mapping.
+    const id = path === "/" ? "home" : String(path).replace(/^\//, "");
+    return readOne("seo", id);
   },
 
   async queryRatePlans() {

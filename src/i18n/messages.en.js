@@ -189,6 +189,8 @@ export const en = {
   "booking.status.pending": "Pending review",
   "booking.status.confirmed": "Confirmed",
   "booking.status.declined": "Declined",
+  "booking.status.proposed": "Alternative dates offered",
+  "booking.status.cancelled": "Cancelled",
 
   "locations.title": "Pick-up and return",
   "locations.lede":

@@ -1,4 +1,19 @@
 import seed from "./seed/index.js";
+import {
+  BookingInputError,
+  DUPLICATE_WINDOW_MS,
+  buildBookingRecord,
+  evaluateRequest,
+  idempotencyKeyFor,
+  normalizeBookingInput,
+  referenceBase,
+  referenceCandidate,
+} from "../booking/bookingRecord.js";
+import {
+  applyDecision,
+  normalizeDecisionInput,
+  publicStatusOf,
+} from "../booking/bookingDecision.js";
 
 /**
  * Seed adapter — the local, Firestore-shaped data source used until a real
@@ -33,49 +48,22 @@ function failIfSimulated(where) {
 const byId = (list, id) => list.find((item) => item.id === id) ?? null;
 const active = (list) => list.filter((item) => item.status !== "archived");
 
-/** Two identical submissions closer together than this are one request. */
-const DUPLICATE_WINDOW_MS = 10 * 60 * 1000;
-
-const pad = (n, width = 2) => String(n).padStart(width, "0");
-
-/**
- * A readable, human-quotable reference: `CD-20261009-142301`.
- * Date + time of creation, so a customer can read it out over the phone and
- * support can sort on it. Uniqueness is enforced by `uniqueReference`.
- */
-function referenceBase(date) {
-  const stamp =
-    `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}` +
-    `-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
-  return `CD-${stamp}`;
-}
-
+/** Allocate a reference nobody in this store already holds. */
 function uniqueReference(list, base) {
-  let candidate = base;
-  let suffix = 2;
-  while (list.some((record) => record.reference === candidate)) {
-    candidate = `${base}-${suffix}`;
-    suffix += 1;
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    const candidate = referenceCandidate(base, attempt);
+    if (!list.some((record) => record.reference === candidate)) return candidate;
   }
-  return candidate;
+  throw new Error("[seed] reference space exhausted");
 }
 
-/**
- * Everything that makes a submission "the same request" for dedupe purposes.
- * Deliberately excludes free-text notes: a driver adding a flight number on
- * a retry is still retrying, not asking for a second car.
- */
-function idempotencyKeyFor(payload) {
-  const customer = payload.customer ?? {};
-  return [
-    payload.vehicleId ?? "",
-    payload.pickupDate ?? "",
-    payload.returnDate ?? "",
-    payload.pickupLocationId ?? "",
-    (customer.email ?? "").trim().toLowerCase(),
-    (customer.phone ?? "").trim(),
-  ].join("|");
+/** The rate plan the storefront prices with — mirrors the server read. */
+function activeRatePlan() {
+  return seed.ratePlans.find((plan) => plan.status === "active") ?? seed.ratePlans[0] ?? null;
 }
+
+/** Actor recorded on decisions taken in local demo mode. */
+const LOCAL_ACTOR = Object.freeze({ uid: "local-demo", email: null, role: "admin" });
 
 export const seedAdapter = {
   name: "seed",
@@ -192,18 +180,22 @@ export const seedAdapter = {
   /**
    * Create a booking request.
    *
-   * Two guarantees the public site depends on:
+   * The demo adapter runs the *same* domain code as the Cloud Function —
+   * `normalizeBookingInput` → `evaluateRequest` → `buildBookingRecord` — so a
+   * record produced locally and a record produced by the server are identical
+   * down to the field. What differs is only where the guarantee is enforced:
+   * here against an in-memory array, there inside a Firestore transaction.
    *
-   *  - **Stable reference.** The reference is built once from the creation
-   *    clock and checked against the store, so it can never be handed out
-   *    twice and it never changes afterwards.
-   *  - **No accidental duplicates.** An identical submission (same vehicle,
-   *    dates, location and contact) inside `DUPLICATE_WINDOW_MS` returns the
-   *    request that already exists instead of creating a second one. A retry
-   *    after a network error therefore cannot double-book.
+   * Guarantees both must keep:
    *
-   * The Firestore adapter must reproduce both with a deterministic document
-   * ID derived from `idempotencyKey` (see `src/lib/firebase/README.md`).
+   *  - **Stable reference.** Built from the creation clock, checked against the
+   *    store, never handed out twice, never changed afterwards.
+   *  - **No accidental duplicates.** The same vehicle/dates/counter/contact
+   *    inside `DUPLICATE_WINDOW_MS` returns the request that already exists.
+   *  - **Server-owned price.** A client payload is read for intent only; the
+   *    total comes from `quoteVehicle`.
+   *
+   * Fire-and-retry cannot double-book, in either backend.
    */
   async createBookingRequest(payload) {
     await wait();
@@ -212,32 +204,108 @@ export const seedAdapter = {
       throw new Error("[seed] simulated write failure in createBookingRequest (VITE_DEMO_FAIL_WRITES=1)");
     }
 
-    const idempotencyKey = idempotencyKeyFor(payload);
-    const nowMs = Date.now();
+    const input = normalizeBookingInput(payload);
+    const now = new Date();
+    const nowMs = now.getTime();
+    const idempotencyKey = idempotencyKeyFor(input);
 
     const duplicate = seed.bookingRequests.find(
       (record) =>
         record.idempotencyKey === idempotencyKey &&
         nowMs - Date.parse(record.createdAt) < DUPLICATE_WINDOW_MS,
     );
-    if (duplicate) return duplicate;
+    if (duplicate) return { ...duplicate, duplicate: true };
 
-    const created = new Date(nowMs);
-    const reference = uniqueReference(seed.bookingRequests, referenceBase(created));
-    const now = created.toISOString();
+    const vehicle = byId(seed.vehicles, input.vehicleId);
+    const location = byId(seed.locations, input.pickupLocationId);
+    const ratePlan = activeRatePlan();
+    const blocks = seed.blockPeriods.filter((b) => b.vehicleId === input.vehicleId);
 
-    const record = {
-      id: `req_${reference.slice(3)}`,
+    const { availability, quote } = evaluateRequest({ vehicle, location, ratePlan, blocks, input });
+    if (availability.state === "unavailable") {
+      throw new BookingInputError("vehicle-unavailable", "the vehicle is not free for these dates");
+    }
+
+    const reference = uniqueReference(seed.bookingRequests, referenceBase(now));
+    const record = buildBookingRecord({
+      input,
+      vehicle,
+      location,
+      quote,
       reference,
       idempotencyKey,
-      status: "pending",
-      createdAt: now,
-      updatedAt: now,
-      ...payload,
-    };
+      availabilityCheckedAt: now.toISOString(),
+    });
+    record.id = `req_${reference.slice(3)}`;
+    record.createdAt = now.toISOString();
+    record.updatedAt = now.toISOString();
 
     seed.bookingRequests.unshift(record);
-    return record;
+    return { ...record, duplicate: false };
+  },
+
+  /**
+   * Authoritative status for one reference — the payload the server returns.
+   * Personal details and internal notes are stripped by `publicStatusOf`.
+   */
+  async getBookingStatus(reference) {
+    await wait();
+    const wanted = String(reference ?? "").trim().toUpperCase();
+    const record = seed.bookingRequests.find((r) => r.reference === wanted);
+    if (!record) {
+      const error = new Error("not-found");
+      error.code = "not-found";
+      throw error;
+    }
+    return publicStatusOf(record);
+  },
+
+  /**
+   * Staff review action.
+   *
+   * In local demo mode the role check has nothing to check against — there is
+   * no Firebase project and therefore no identity — so the actor is recorded
+   * as `local-demo` and the admin surface labels itself accordingly. Against
+   * Firestore the same call goes through the callable, which reads the Auth
+   * custom claim and cannot be reached without one.
+   */
+  async submitBookingDecision(payload) {
+    await wait();
+    failIfSimulated("submitBookingDecision");
+
+    const input = normalizeDecisionInput(payload);
+    const request = byId(seed.bookingRequests, input.requestId);
+    if (!request) {
+      const error = new Error("not-found");
+      error.code = "not-found";
+      throw error;
+    }
+
+    const result = applyDecision({
+      request,
+      input,
+      actor: LOCAL_ACTOR,
+      blocks: seed.blockPeriods.filter((b) => b.vehicleId === request.vehicleId),
+      confirmedRequests: seed.bookingRequests.filter((r) => r.status === "confirmed"),
+      vehicle: byId(seed.vehicles, request.vehicleId),
+      location: byId(seed.locations, request.pickupLocationId),
+      ratePlan: activeRatePlan(),
+    });
+
+    if (result.noop) return { ...request, noop: true };
+
+    Object.assign(request, result.changes);
+
+    const index = seed.blockPeriods.findIndex((b) => b.id === request.id);
+    if (result.block) {
+      const block = { ...result.block, id: request.id };
+      if (index >= 0) seed.blockPeriods[index] = block;
+      else seed.blockPeriods.push(block);
+    } else if (result.deleteBlock && index >= 0) {
+      seed.blockPeriods.splice(index, 1);
+    }
+
+    return { ...request, noop: false };
   },
 
   async getBookingById(id) {
@@ -249,6 +317,16 @@ export const seedAdapter = {
     await wait();
     let list = seed.bookingRequests;
     if (filters.status) list = list.filter((b) => b.status === filters.status);
+    if (filters.vehicleId) list = list.filter((b) => b.vehicleId === filters.vehicleId);
+    if (filters.search) {
+      const needle = filters.search.trim().toLowerCase();
+      list = list.filter((b) =>
+        [b.reference, b.vehicleName, b.customer?.fullName, b.customer?.email, b.customer?.phone]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(needle)),
+      );
+    }
+    if (filters.limit) list = list.slice(0, filters.limit);
     return list;
   },
 
