@@ -133,7 +133,39 @@ creates bookingRequests/ →   /bookingRequests      ←  reviews → confirms
 
 No separate fake admin dataset exists or will be created.
 
+## Booking requests: reference and duplicate protection
+
+`createBookingRequest` gives every request a **stable, readable reference**
+(`CD-YYYYMMDD-HHMMSS`, with `-2`, `-3`… appended on collision) and returns the
+same record when the same request is submitted twice within a ten-minute
+**idempotency window**. The reference is language-neutral business data — it is
+never localized — and the UI only ever shows `pending` for it: a submitted
+request is *not* a confirmed rental.
+
+Both guarantees are currently computed in `seedAdapter.js` by reading the
+in-memory store. On Firestore they must move **server-side**, because a client
+cannot atomically scan a collection:
+
+| Guarantee | Seed adapter today | Firestore equivalent |
+| --- | --- | --- |
+| Unique reference | loop over `bookingRequests` | `runTransaction` over a `bookingRequests/referenceIndex/<ref>` marker doc, or an idempotency doc written with `create()` so a duplicate key fails |
+| Duplicate submission | scan for `idempotencyKey` | `get()` on `bookingRequests/idem/<sha256(key)>`; write the marker and the request in the same transaction |
+| Stable reference after a client retry | same key → same record | same — the idempotency doc is the source of truth, not the client timestamp |
+
+Until a live project exists, this behaviour is proven against the seed adapter
+only. Until it is re-implemented inside a transaction (or an HTTPS callable),
+a real Firestore deployment should treat client-supplied references and
+idempotency keys as **untrusted input**, not as a lock.
+
+Reproducible with:
+
+* `VITE_DEMO_FAIL=1` — every read *and* write rejects (error states).
+* `VITE_DEMO_FAIL_WRITES=1` — reads succeed, only `createBookingRequest`
+  rejects (the submit-failure and retry path on the review step).
+
 ## QA hooks
 
 * `VITE_SEED_LATENCY_MS=0` — remove simulated latency.
 * `VITE_DEMO_FAIL=1` — make the seed adapter reject, to exercise error states.
+* `VITE_DEMO_FAIL_WRITES=1` — make only `createBookingRequest` reject, to
+  exercise the request form's submit-failure and retry path.

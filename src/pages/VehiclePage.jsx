@@ -6,6 +6,7 @@ import { useDocumentMeta } from "../hooks/useDocumentMeta.js";
 import { repositories } from "../lib/repositories/index.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { useSearchState } from "../features/search/useSearchState.js";
+import { fleetHref } from "../features/search/searchState.js";
 import { quoteVehicle } from "../lib/pricing/pricingService.js";
 import { getAvailability } from "../lib/availability/availabilityService.js";
 import { formatMoney } from "../lib/money.js";
@@ -45,6 +46,8 @@ export function VehiclePage() {
   const pickLocalized = usePick();
   const { state } = useSearchState();
   const [activeSection, setActiveSection] = useState("overview");
+  // Returning to the fleet must land on the same search, not an empty one.
+  const fleetBack = fleetHref(state);
 
   const { data, loading, error, reload } = useAsyncData(
     async () => {
@@ -150,7 +153,7 @@ export function VehiclePage() {
             <Button variant="secondary" onClick={reload}>
               {t("states.retry")}
             </Button>
-            <Button as={Link} to="/fleet" variant="quiet">
+            <Button as={Link} to={fleetBack} variant="quiet">
               {t("vehicle.notFound.action")}
             </Button>
           </div>
@@ -166,7 +169,7 @@ export function VehiclePage() {
           {t("vehicle.notFound.title")}
         </h1>
         <p className="mt-3 text-body text-ink-muted">{t("vehicle.notFound.body")}</p>
-        <Button as={Link} to="/fleet" className="mt-6">
+        <Button as={Link} to={fleetBack} className="mt-6">
           {t("vehicle.notFound.action")}
         </Button>
       </div>
@@ -193,7 +196,7 @@ export function VehiclePage() {
           <ol className="flex flex-wrap items-center gap-2 text-caption text-ink-muted">
             <li>
               <Link
-                to="/fleet"
+                to={fleetBack}
                 className="inline-flex min-h-11 items-center gap-1.5 transition-colors hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 <Icon name={locale === "ar" ? "arrowRight" : "arrowLeft"} size={13} />
@@ -227,7 +230,7 @@ export function VehiclePage() {
                   href={`#${section.id}`}
                   aria-current={activeSection === section.id ? "true" : undefined}
                   className={cn(
-                    "inline-flex min-h-12 items-center whitespace-nowrap border-b-2 text-body-sm transition-colors duration-[180ms]",
+                    "inline-flex min-h-12 min-w-11 items-center whitespace-nowrap border-b-2 text-body-sm transition-colors duration-[180ms]",
                     "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
                     activeSection === section.id
                       ? "border-accent text-ink"
@@ -417,7 +420,7 @@ export function VehiclePage() {
           <section className="mt-14 scroll-mt-32" aria-labelledby="similar-title">
             <SectionHeading id="similar">{t("vehicle.similar")}</SectionHeading>
             <div className="mt-6">
-              <FleetGrid className="lg:grid-cols-3 2xl:grid-cols-3">
+              <FleetGrid wide={false}>
                 {(data.similar ?? []).map((similar) => (
                   <VehicleCard
                     key={similar.id}

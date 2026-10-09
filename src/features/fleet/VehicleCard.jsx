@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { cn } from "../../lib/cn.js";
 import { useLocaleContext, usePick } from "../../i18n/context.js";
 import { formatMoney } from "../../lib/money.js";
+import { useJourneyLink } from "../search/useJourneyLink.js";
 import Picture from "../../components/ui/Picture.jsx";
 import StatusMark from "../../components/ui/StatusMark.jsx";
 import Icon from "../../components/ui/Icon.jsx";
@@ -22,8 +23,10 @@ import {
 export function VehicleCard({ vehicle, quote, availability, category, inclusions = [], className }) {
   const { locale, t } = useLocaleContext();
   const pickLocalized = usePick();
+  const journeyLink = useJourneyLink();
 
   const name = vehicleName(vehicle, locale);
+  const href = journeyLink(`/vehicle/${vehicle.id}`);
   const cover = vehicle.media?.[0];
   const state = availability?.state ?? vehicle.availability;
   const cells = specCells(vehicle, locale, t).slice(0, 4);
@@ -45,7 +48,7 @@ export function VehicleCard({ vehicle, quote, availability, category, inclusions
       )}
     >
       <Link
-        to={`/vehicle/${vehicle.id}`}
+        to={href}
         aria-label={t("card.viewLabel", { name })}
         className="absolute inset-0 z-10 rounded-lg focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-accent"
       />
@@ -80,7 +83,10 @@ export function VehicleCard({ vehicle, quote, availability, category, inclusions
           </div>
         </div>
 
-        <dl className="grid grid-cols-4 gap-2 border-y border-line py-3">
+        {/* 2×2, not 4-across: "Transmission"/"Automatic" need ~95px/62px and a
+            4-up cell only offers 55–80px at any breakpoint (4-up cards are the
+            narrowest). Two columns clear both at 390 → 1920 with room to spare. */}
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border-y border-line py-3">
           {cells.map((cell) => (
             <div key={cell.key} className="min-w-0">
               <dt className="label-micro truncate text-ink-faint">{cell.label}</dt>

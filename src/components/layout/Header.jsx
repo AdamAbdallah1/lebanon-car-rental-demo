@@ -4,6 +4,7 @@ import { cn } from "../../lib/cn.js";
 import { useLocaleContext } from "../../i18n/context.js";
 import { repositories } from "../../lib/repositories/index.js";
 import { useAsyncData } from "../../hooks/useAsyncData.js";
+import { useJourneyLink } from "../../features/search/useJourneyLink.js";
 import Wordmark from "./Wordmark.jsx";
 import Icon from "../ui/Icon.jsx";
 import Button from "../ui/Button.jsx";
@@ -53,6 +54,9 @@ export function Header() {
   const panelRef = useRef(null);
   const menuButtonRef = useRef(null);
   const firstLinkRef = useRef(null);
+  // Keeps the pick-up point and dates alive when the renter moves between
+  // the fleet, the locations and the request form.
+  const journeyLink = useJourneyLink();
 
   const { data } = useAsyncData(() => repositories.getNavigation(), []);
   const items = data?.header ?? [];
@@ -100,58 +104,71 @@ export function Header() {
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-header border-b border-line bg-canvas/92 backdrop-blur-md">
-      <div className="container-page flex h-[var(--header-h-mobile)] items-center justify-between gap-4 lg:h-[var(--header-h)]">
-        <Wordmark className="shrink-0" />
+    /*
+     * The menu panel is a sibling of <header>, not a child.
+     *
+     * `backdrop-blur` on the header makes it the containing block for its
+     * `position: fixed` descendants, so a panel declared inside would resolve
+     * `top: var(--header-h-mobile); bottom: 0` against the 60px header instead
+     * of the viewport and collapse to a 1px strip — only the first nav row
+     * would render, over the page behind it. Keeping it outside lets it size
+     * to the viewport as intended. `aria-controls` matches by id, so the
+     * relationship with the toggle is unaffected.
+     */
+    <>
+      <header className="sticky top-0 z-header border-b border-line bg-canvas/92 backdrop-blur-md">
+        <div className="container-page flex h-[var(--header-h-mobile)] items-center justify-between gap-4 lg:h-[var(--header-h)]">
+          <Wordmark className="shrink-0" />
 
-        <nav aria-label={t("nav.primary")} className="hidden lg:block">
-          <ul className="flex items-center gap-6">
-            {items.map((item) => (
-              <li key={item.id}>
-                <NavLink
-                  to={item.href}
-                  className={DESKTOP_LINK}
-                  end={item.href === "/"}
-                >
-                  {({ isActive }) => (
-                    <>
-                      {t(item.labelKey)}
-                      <ActiveRule isActive={isActive} />
-                    </>
-                  )}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </nav>
+          <nav aria-label={t("nav.primary")} className="hidden lg:block">
+            <ul className="flex items-center gap-6">
+              {items.map((item) => (
+                <li key={item.id}>
+                  <NavLink
+                    to={journeyLink(item.href)}
+                    className={DESKTOP_LINK}
+                    end={item.href === "/"}
+                  >
+                    {({ isActive }) => (
+                      <>
+                        {t(item.labelKey)}
+                        <ActiveRule isActive={isActive} />
+                      </>
+                    )}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </nav>
 
-        <div className="flex items-center gap-2">
-          <LanguageSwitch />
-          {/* The wrapper carries the responsive `hidden` — a `hidden` class on
-              the button itself would lose to its own `inline-flex` base. */}
-          <span className="hidden sm:block">
-            <Button as={Link} to="/book" size="sm">
-              {t("vehicle.requestShort")}
-            </Button>
-          </span>
+          <div className="flex items-center gap-2">
+            <LanguageSwitch />
+            {/* The wrapper carries the responsive `hidden` — a `hidden` class on
+                the button itself would lose to its own `inline-flex` base. */}
+            <span className="hidden sm:block">
+              <Button as={Link} to={journeyLink("/book")} size="sm">
+                {t("vehicle.requestShort")}
+              </Button>
+            </span>
 
-          <button
-            ref={menuButtonRef}
-            type="button"
-            className={cn(
-              "inline-flex size-11 items-center justify-center rounded-md border border-line lg:hidden",
-              "text-ink transition-colors hover:border-ink",
-              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-            )}
-            aria-expanded={menuOpen}
-            aria-controls="mobile-menu"
-            aria-label={menuOpen ? t("nav.menuClose") : t("nav.menuOpen")}
-            onClick={() => setMenuOpen((v) => !v)}
-          >
-            <Icon name={menuOpen ? "close" : "menu"} size={18} />
-          </button>
+            <button
+              ref={menuButtonRef}
+              type="button"
+              className={cn(
+                "inline-flex size-11 items-center justify-center rounded-md border border-line lg:hidden",
+                "text-ink transition-colors hover:border-ink",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+              )}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-menu"
+              aria-label={menuOpen ? t("nav.menuClose") : t("nav.menuOpen")}
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              <Icon name={menuOpen ? "close" : "menu"} size={18} />
+            </button>
+          </div>
         </div>
-      </div>
+      </header>
 
       {menuOpen ? (
         <div
@@ -164,7 +181,7 @@ export function Header() {
               {items.map((item, index) => (
                 <li key={item.id} className="border-b border-line">
                   <NavLink
-                    to={item.href}
+                    to={journeyLink(item.href)}
                     ref={index === 0 ? firstLinkRef : undefined}
                     className={({ isActive }) =>
                       cn(
@@ -190,10 +207,10 @@ export function Header() {
             </ul>
 
             <div className="mt-8 flex flex-col gap-3">
-              <Button as={Link} to="/book" size="lg">
+              <Button as={Link} to={journeyLink("/book")} size="lg">
                 {t("vehicle.request")}
               </Button>
-              <Button as={Link} to="/faq" variant="quiet" size="lg">
+              <Button as={Link} to={journeyLink("/faq")} variant="quiet" size="lg">
                 {t("nav.faq")}
               </Button>
             </div>
@@ -202,7 +219,7 @@ export function Header() {
           </nav>
         </div>
       ) : null}
-    </header>
+    </>
   );
 }
 

@@ -96,10 +96,38 @@ export const homeSections = [
       en: "Pick up at Beirut airport, from a city office, or have the car delivered to your hotel. Clear daily rates, stated deposits, and a real person on WhatsApp.",
       ar: "استلم سيارتك من مطار بيروت، أو من مكتب في المدينة، أو تُسلَّم إلى فندقك. أسعار يومية واضحة، تأمينات معلنة، وشخص حقيقي على واتساب.",
     },
-    image: media(39035693, {
+    /*
+     * Art-directed pair, not one photo cropped to death at every width.
+     *
+     * `image` is the landscape frame: golden-hour mountain switchback with the
+     * SUV low-centre, leaving dark ridges under the headline. Measured relative
+     * luminance over the headline zone is 0.072 — white copy sits at 8.6:1 on
+     * the raw photo, which is why the scrim above it can stay light and the
+     * picture still reads as a photograph rather than a dark wash.
+     *
+     * `imageMobile` is a native portrait (2832×4240) used below 640px. A
+     * landscape frame centre-sliced into a 390px viewport is what makes a hero
+     * look cheap — the wheels get cut and only a middle band survives — so
+     * narrow screens get their own frame instead.
+     *
+     * Both IDs resolve on the Pexels CDN; alt is shared because <picture>
+     * exposes a single alt on the underlying <img>, and this wording is true
+     * of both frames.
+     */
+    image: media(18066615, {
+      w: 7087,
+      h: 4435,
       alt: {
-        en: "A white four-wheel-drive rental car on a mountain road in daylight",
-        ar: "سيارة دفع رباعي بيضاء على طريق جبلي في ضوء النهار",
+        en: "A rental SUV in a mountain landscape at golden hour",
+        ar: "سيارة تأجير بمحرك دفع رباعي في منظر جبلي في ضوء الساعة الذهبية",
+      },
+    }),
+    imageMobile: media(33980821, {
+      w: 2832,
+      h: 4240,
+      alt: {
+        en: "A rental SUV above a Mediterranean hillside village at golden hour",
+        ar: "سيارة تأجير بمحرك دفع رباعي فوق قرية جبلية مطلّة على المتوسط في ضوء ذهبي",
       },
     }),
     sortOrder: 1,

@@ -16,7 +16,7 @@
   --color-ink: #15140f;
   --color-ink-soft: #3a382f;
   --color-ink-muted: #6b6759;
-  --color-ink-faint: #928d7d;
+  --color-ink-faint: #706d60;
 
   /* --- Lines ------------------------------------------------------------ */
   --color-line: #e5e1d6;
@@ -31,7 +31,7 @@
   /* --- Semantic status (data / availability only) ----------------------- */
   --color-status-open: #2e6b4e;
   --color-status-open-soft: #e8f1ec;
-  --color-status-limited: #a9741c;
+  --color-status-limited: #8f6316;
   --color-status-limited-soft: #f8f0df;
   --color-status-closed: #9e2b2b;
   --color-status-closed-soft: #f7e8e8;
@@ -52,6 +52,14 @@
   --font-ar-display: "Noto Kufi Arabic", "IBM Plex Sans Arabic", sans-serif;
 
   /* --- Type scale (fluid) ------------------------------------------------ */
+  /* Hero only. display-1 caps at 5rem (80px) — over a photo that size eats
+     the composition, so the hero stops at 4.5rem. Tracking is looser than the
+     other display tiers because Instrument Serif closes its counters when it
+     is tracked as tight as the sans scale. */
+  --text-display-hero: clamp(2.5rem, 5.6vw, 4.5rem);
+  --text-display-hero--line-height: 1.04;
+  --text-display-hero--letter-spacing: -0.012em;
+
   --text-display-1: clamp(2.75rem, 6.4vw, 5rem);
   --text-display-1--line-height: 1.02;
   --text-display-1--letter-spacing: -0.02em;

@@ -48,19 +48,33 @@ export function HeroSearch({ value, onChange, onSubmit, layout = "panel" }) {
       aria-label={t("search.legend")}
       className={cn(
         layout === "panel"
-          ? "rounded-lg border border-line bg-surface/95 p-4 backdrop-blur-sm sm:p-5"
+          ? // Solid, not frosted: `backdrop-blur` above the fold costs real
+            // paint time and reads generic now. Opacity ≥0.97 keeps the panel
+            // legible over any part of the photo.
+            "mx-auto w-full max-w-[1040px] rounded-lg border border-line bg-canvas/98 p-4 text-start shadow-lift sm:p-5"
           : "w-full",
       )}
     >
       <fieldset className="m-0 border-0 p-0">
         <legend className="label-micro mb-3 text-ink-muted">{t("search.legend")}</legend>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-[1.35fr_1fr_1fr_auto] md:items-end">
+        {/*
+          The panel is 1040px wide, so desktop finally has room for one row:
+          location (1.4fr) · pick-up date · return date · CTA. Below lg it
+          falls back to a stacked column, then a 2×2 at sm.
+
+          `items-start` (not `end`) keeps the labels — and therefore the inputs
+          on every cell — on one baseline even though only the return date
+          carries a hint. That hint is also the only cell taller than the rest,
+          so the CTA opts into `self-end` to land on the same floor.
+        */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start lg:grid-cols-[1.4fr_1fr_1fr_auto] lg:gap-2">
           <Field
             label={t("search.pickupLocation")}
             required
             error={showError("location")}
             id="search-location"
+            className="sm:col-span-2 lg:col-span-1"
           >
             {({ id, describedBy }) => (
               <LocationPicker
@@ -128,12 +142,14 @@ export function HeroSearch({ value, onChange, onSubmit, layout = "panel" }) {
             )}
           </Field>
 
-          <Button type="submit" size="lg" className="w-full md:w-auto">
-            <span className="whitespace-nowrap">{t("search.submit")}</span>
-            <span aria-hidden="true" dir="ltr">
-              {locale === "ar" ? "←" : "→"}
-            </span>
-          </Button>
+          <div className="sm:col-span-2 lg:col-span-1 lg:self-center">
+            <Button type="submit" size="lg" className="w-full lg:w-auto">
+              <span className="whitespace-nowrap">{t("search.submit")}</span>
+              <span aria-hidden="true" dir="ltr">
+                {locale === "ar" ? "←" : "→"}
+              </span>
+            </Button>
+          </div>
         </div>
       </fieldset>
 

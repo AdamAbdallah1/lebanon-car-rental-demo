@@ -19,9 +19,22 @@ const allLocations = [
   "hamra",
   "sin-el-fil",
   "hotel-delivery",
+  // Both delivery points are offered for every vehicle. Leaving one of them
+  // out of `locationIds` would make that location unpickable in the fleet
+  // filter even though it exists as a document — a data oversight, not a
+  // business rule.
+  "address-delivery",
 ];
 
-const cityOnly = ["beirut", "mar-mikhael", "achrafieh", "hamra", "sin-el-fil", "hotel-delivery"];
+const cityOnly = [
+  "beirut",
+  "mar-mikhael",
+  "achrafieh",
+  "hamra",
+  "sin-el-fil",
+  "hotel-delivery",
+  "address-delivery",
+];
 
 const STAMP = "2026-10-08T00:00:00.000Z";
 

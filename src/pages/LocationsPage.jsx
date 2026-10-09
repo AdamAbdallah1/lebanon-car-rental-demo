@@ -3,7 +3,7 @@ import { useLocaleContext, usePick } from "../i18n/context.js";
 import { useDocumentMeta } from "../hooks/useDocumentMeta.js";
 import { repositories } from "../lib/repositories/index.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
-import { useSearchState } from "../features/search/useSearchState.js";
+import { useJourneyLink } from "../features/search/useJourneyLink.js";
 import PageHeader from "../components/layout/PageHeader.jsx";
 import Icon from "../components/ui/Icon.jsx";
 import { formatMoney } from "../lib/money.js";
@@ -20,7 +20,7 @@ const GROUP_ORDER = ["airports", "cities", "offices", "delivery"];
 export function LocationsPage() {
   const { t, locale } = useLocaleContext();
   const pickLocalized = usePick();
-  const { setState } = useSearchState();
+  const journeyLink = useJourneyLink();
 
   useDocumentMeta({
     title: "Pick-up and return locations",
@@ -139,8 +139,7 @@ export function LocationsPage() {
 
                       <div className="mt-auto flex flex-wrap gap-2 pt-2">
                         <Link
-                          to={`/fleet?loc=${encodeURIComponent(loc.id)}`}
-                          onClick={() => setState({ locationId: loc.id })}
+                          to={journeyLink(`/fleet?loc=${encodeURIComponent(loc.id)}`)}
                           className="inline-flex min-h-11 items-center gap-2 rounded-md border border-ink px-4 font-mono text-caption text-ink transition-colors hover:bg-ink hover:text-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                         >
                           {t("locations.pickup")}

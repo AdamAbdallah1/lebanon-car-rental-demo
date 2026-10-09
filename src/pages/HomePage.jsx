@@ -23,7 +23,7 @@ export function HomePage() {
   return (
     <>
       <Hero />
-      <FleetShowcase limit={6} />
+      <FleetShowcase limit={4} />
       <LocationStrip />
       <Steps />
 

@@ -10,9 +10,26 @@ import { addDays, isValidISO, rentalDays, todayISO } from "../../lib/dates.js";
  * and the vehicle page all read the same state the same way.
  */
 
-export const SEARCH_KEYS = { loc: "loc", from: "from", to: "to", cat: "cat", sort: "sort" };
+export const SEARCH_KEYS = {
+  loc: "loc",
+  from: "from",
+  to: "to",
+  cat: "cat",
+  sort: "sort",
+  pax: "pax",
+  bags: "bags",
+};
 
 const SORTS = new Set(["sortOrder", "priceAsc", "priceDesc"]);
+
+/** Trip-fit filters: only values the fleet can actually satisfy. */
+export const PASSENGER_CHOICES = [5, 7, 8];
+export const LUGGAGE_CHOICES = [2, 3, 4];
+
+const toChoice = (raw, choices) => {
+  const n = Number(raw);
+  return choices.includes(n) ? n : null;
+};
 
 const DEFAULT_DURATION_DAYS = 3;
 
@@ -34,6 +51,8 @@ export function readSearchState(params) {
     returnDate,
     category: get(SEARCH_KEYS.cat) || "all",
     sort,
+    passengers: toChoice(get(SEARCH_KEYS.pax), PASSENGER_CHOICES),
+    luggage: toChoice(get(SEARCH_KEYS.bags), LUGGAGE_CHOICES),
   };
 }
 
@@ -48,12 +67,19 @@ export function searchQuery(state) {
   if (state?.returnDate) params.set(SEARCH_KEYS.to, state.returnDate);
   if (state?.category && state.category !== "all") params.set(SEARCH_KEYS.cat, state.category);
   if (state?.sort && state.sort !== "sortOrder") params.set(SEARCH_KEYS.sort, state.sort);
+  if (state?.passengers) params.set(SEARCH_KEYS.pax, String(state.passengers));
+  if (state?.luggage) params.set(SEARCH_KEYS.bags, String(state.luggage));
   const qs = params.toString();
   return qs ? `?${qs}` : "";
 }
 
 export function fleetHref(state) {
   return `/fleet${searchQuery(state)}`;
+}
+
+/** True when a trip-fit filter (passengers / luggage) narrows the fleet. */
+export function hasFitFilters(state) {
+  return Boolean(state?.passengers || state?.luggage);
 }
 
 /** Prefill dates so the widget is usable on first paint. */

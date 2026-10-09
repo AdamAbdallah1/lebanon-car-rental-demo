@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { cn } from "../../lib/cn.js";
+import { srcSetString } from "../../lib/srcSet.js";
 
 /**
  * Responsive image driven by a repository `mediaAsset`:
@@ -25,9 +26,7 @@ export function Picture({
 
   if (!asset) return null;
 
-  const srcSet = (asset.srcSet ?? [])
-    .map((entry) => `${entry.url} ${entry.width}w`)
-    .join(", ");
+  const srcSet = srcSetString(asset);
 
   return (
     <div

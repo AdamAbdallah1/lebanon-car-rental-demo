@@ -34,8 +34,11 @@ export const en = {
   "hero.lede":
     "Pick up at Beirut airport, from a city office, or have the car delivered to your hotel. Clear daily rates, stated deposits, and a real person on WhatsApp.",
   "hero.imageAlt":
-    "A rental car parked on a coastal road in daylight",
+    "A rental SUV in a mountain landscape at golden hour",
   "hero.scroll": "Explore the fleet",
+  "hero.trust.delivery": "Airport, city & hotel delivery",
+  "hero.trust.pricing": "Rates and deposits stated up front",
+  "hero.trust.request": "Request first, no card charged",
 
   "search.legend": "Start a rental",
   "search.pickupLocation": "Pick-up location",
@@ -61,7 +64,7 @@ export const en = {
     "Every vehicle listed with its real daily rate, deposit and mileage allowance. Prices are the same on the page and in the contract.",
   "fleet.showcaseTitle": "Fleet",
   "fleet.showcaseLede":
-    "Sixteen vehicles across six categories — from city hatchbacks to long-wheelbase SUVs for the mountain roads.",
+    "Seventeen vehicles across six categories — from city hatchbacks to long-wheelbase SUVs for the mountain roads.",
   "fleet.browseAll": "Browse the full fleet",
   "fleet.filter.label": "Filter by category",
   "fleet.filter.all": "All vehicles",
@@ -70,7 +73,7 @@ export const en = {
   "fleet.sort.label": "Sort",
   "fleet.sort.priceAsc": "Price, low to high",
   "fleet.sort.priceDesc": "Price, high to low",
-  "fleet.sort.name": "Name",
+  "fleet.sort.recommended": "Recommended",
   "fleet.results": "Showing {count} of {total}",
   "fleet.empty.title": "No vehicles match these filters",
   "fleet.empty.body":
@@ -322,4 +325,87 @@ export const en = {
 
   "demo.notice":
     "Demonstration build — data is seeded and no real reservations are created.",
+
+  // ---- trip-fit filters -------------------------------------------------
+  "fleet.filter.any": "Any",
+  "fleet.filter.passengers": "Passengers",
+  "fleet.filter.luggage": "Luggage",
+  "fleet.filter.passengersOption": "{count}+ passengers",
+  "fleet.filter.luggageOption": "{count}+ bags",
+
+  // ---- location detail --------------------------------------------------
+  "locations.fee.delivery": "Delivery service fee",
+  "locations.guidance": "What to expect at pick-up",
+  "locations.guidance.confirm":
+    "Times and handover are confirmed when we reply to your request.",
+  "locations.flag.counter": "Counter",
+  "locations.flag.counterPresent": "Staffed counter on site",
+  "locations.flag.deliveryOnly": "Delivery only, no counter",
+  "locations.flag.return": "Return",
+  "locations.flag.returnDiff": "May be returned to another point",
+  "locations.flag.returnSame": "Collected and returned here",
+  "locations.vehicles.title": "Vehicles collected here",
+  "locations.vehicles.lede":
+    "Every vehicle that can be picked up from this point, with its daily rate.",
+  "locations.vehicles.forDates":
+    "Priced with the pick-up and return dates from your search.",
+  "locations.vehicles.all": "See all {count} vehicles at this point",
+  "locations.vehicles.empty.title": "No vehicle list for this point yet",
+  "locations.vehicles.empty.body":
+    "Which cars reach this point is agreed with our team — send a request and we will match one to your dates.",
+
+  // ---- itemised quote ---------------------------------------------------
+  "quote.title": "Price breakdown",
+  "quote.charges": "Rental charges",
+  "quote.fees": "Mandatory fees",
+  "quote.subtotal": "Rental subtotal",
+  "quote.vatLine": "{pct}% VAT — added at confirmation",
+  "quote.totalExVat": "Rental total, excluding VAT",
+  "quote.totalIncVat": "Total including {pct}% VAT",
+  "quote.vatNote":
+    "Nothing is charged when you send a request. VAT is added when we confirm the booking.",
+  "quote.depositTitle": "Refundable deposit",
+  "quote.depositNote":
+    "Held when you collect the car and released when you return it. It is not a rental charge.",
+  "quote.extrasTitle": "Optional extras",
+  "quote.extrasNone": "None selected",
+  "quote.extrasNote":
+    "Child seats, a second driver and mobile Wi-Fi are arranged with the team and quoted before you confirm.",
+  "quote.mileageTitle": "Mileage and protection",
+  "quote.excess": "Damage excess per incident: {amount}",
+  "quote.empty": "Add your pick-up and return dates to see an itemised quote.",
+  "quote.pickupNote": "Pick-up and return at {location}.",
+
+  // ---- booking flow -----------------------------------------------------
+  "booking.heading.vehicle": "Vehicle and pick-up point",
+  "booking.step.back": "Back",
+  "booking.step.continue": "Continue",
+  "booking.progress.label": "Request steps",
+  "booking.progress.note":
+    "Nothing is charged and nothing is reserved while you work through these steps.",
+  "booking.review.title": "Check your request",
+  "booking.review.edit": "Change",
+  "booking.review.requirements": "What you will need at handover",
+  "booking.review.requirementsNote":
+    "These are checked when you collect the car, not when you send the request. Read the full rental terms before you book.",
+  "booking.next.title": "What happens next",
+  "booking.next.1": "Your request is queued for review. Nothing is reserved yet.",
+  "booking.next.2":
+    "We check the vehicle, the dates and the pick-up point, then reply with a confirmation or an alternative.",
+  "booking.next.3":
+    "When you collect the car we check your licence and ID and take the refundable deposit.",
+  "booking.reference.hint": "Keep this reference — quote it in any reply.",
+  "booking.error.conflict":
+    "This vehicle was taken for those dates while you were filling in the form. Choose different dates and send again.",
+  "booking.unavailable.action": "Change the dates",
+  "booking.validation.past": "Choose today or a later date.",
+  "booking.validation.locationMismatch":
+    "{location} does not hand this vehicle over. Choose another pick-up point.",
+  "booking.availability.available": "Free for your dates.",
+  "booking.availability.limited":
+    "Limited for your dates — we confirm it before anything is booked.",
+  "booking.availability.unavailable": "Already taken for your dates.",
+  "booking.availability.onRequest": "Available on request.",
+  "booking.availability.note":
+    "An indication only — availability is confirmed when we reply.",
 };

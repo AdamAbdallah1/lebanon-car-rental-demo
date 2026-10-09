@@ -11,9 +11,18 @@ import { formatMoney } from "../money.js";
  * (later) the booking flow.
  *
  * Phase 1 supports: daily, weekly, monthly, location fees, mileage, deposit
- * and VAT disclosure. Seasonal rules, extras, driver age, protection tiers
- * and cancellation fees are accepted as inputs but only wired when those
+ * and VAT disclosure. Seasonal rules, driver age, protection tiers and
+ * cancellation fees are accepted as inputs but only wired when those
  * features ship.
+ *
+ * The result carries its charges already grouped, so a caller can render
+ * "rental charges / mandatory fees / refundable deposit / optional extras"
+ * without deciding for itself what belongs where:
+ *   baseTotal − discount   = subtotal        (rental charges)
+ *   + locationFee          = total           (mandatory, one-off)
+ *   + vat.amount           = totalWithVat    (mandatory, charged at confirmation)
+ *   deposit                = refundable, never part of `total`
+ *   extras                 = optional; empty until priced extras exist
  *
  * @typedef {Object} PricingContext
  * @property {string|null} pickupDate      ISO yyyy-mm-dd
@@ -65,6 +74,11 @@ export function quoteVehicle(vehicle, ctx = {}) {
     ? null
     : Math.round(dailyRate * 30 * (1 - (vehicle.pricing?.monthlyDiscountPct ?? 0) / 100));
 
+  // Optional extras are quoted, never assumed. The Phase 1 dataset has no
+  // priced extras, so the group is present and empty rather than omitted —
+  // the UI can then say "none" honestly instead of silently hiding a column.
+  const extras = { lines: [], total: 0 };
+
   if (!hasDates) {
     return {
       hasDates: false,
@@ -78,9 +92,11 @@ export function quoteVehicle(vehicle, ctx = {}) {
       locationFee: null,
       subtotal: null,
       total: null,
+      totalWithVat: null,
       effectiveDaily: null,
-      vat: { rate: vatRate, amount: null, appliedAtConfirmation: true },
+      vat: { rate: vatRate, pct: Math.round(vatRate * 100), amount: null, appliedAtConfirmation: true, includedInTotal: false },
       deposit,
+      extras,
       monthlyEquivalent,
       mileage,
       insurance: vehicle.insurance,
@@ -121,9 +137,20 @@ export function quoteVehicle(vehicle, ctx = {}) {
     locationFee,
     subtotal,
     total,
+    // VAT is charged at confirmation, never inside `total`. Both figures are
+    // returned so no component has to multiply anything to show the real
+    // all-in number.
+    totalWithVat: round2(total + vatAmount),
     effectiveDaily: round2(total / days),
-    vat: { rate: vatRate, amount: vatAmount, appliedAtConfirmation: true },
+    vat: {
+      rate: vatRate,
+      pct: Math.round(vatRate * 100),
+      amount: vatAmount,
+      appliedAtConfirmation: true,
+      includedInTotal: false,
+    },
     deposit,
+    extras,
     monthlyEquivalent: null,
     mileage,
     insurance: vehicle.insurance,

@@ -16,7 +16,8 @@ export function FleetSkeleton({ className }) {
       <div className="space-y-3 p-5">
         <div className="h-5 w-2/3 animate-pulse rounded-xs bg-surface-sunken" />
         <div className="h-3 w-1/3 animate-pulse rounded-xs bg-surface-sunken" />
-        <div className="grid grid-cols-4 gap-2 border-y border-line py-3">
+        {/* Must match VehicleCard's spec table (2×2) or the grid shifts on load. */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-y border-line py-3">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="space-y-1.5">
               <div className="h-2.5 w-full animate-pulse rounded-xs bg-surface-sunken" />
@@ -31,11 +32,19 @@ export function FleetSkeleton({ className }) {
   );
 }
 
-export function FleetGrid({ children, className }) {
+/**
+ * Card grid. `cn` is a plain joiner (no tailwind-merge), so a caller cannot
+ * cancel `2xl:grid-cols-4` from `className` — Tailwind emits both classes and
+ * `grid-cols-4` wins by stylesheet order. Narrow containers (the vehicle
+ * page's 832px column) must therefore opt out with `wide={false}`, otherwise
+ * cards drop to ~193px and the spec table clips.
+ */
+export function FleetGrid({ children, className, wide = true }) {
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4",
+        "grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3",
+        wide && "2xl:grid-cols-4",
         className,
       )}
     >

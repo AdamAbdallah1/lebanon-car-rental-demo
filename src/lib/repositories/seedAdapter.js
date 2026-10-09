@@ -6,17 +6,21 @@ import seed from "./seed/index.js";
  * documents the Firestore adapter returns, so swapping adapters changes no
  * component code.
  *
- * QA hooks (both read from `.env.local`, never committed):
- *   VITE_SEED_LATENCY_MS  simulated round-trip, default 120
- *   VITE_DEMO_FAIL=1      every read/write rejects, so each page's loading,
- *                         empty and error states can be inspected. The
- *                         header/footer reads (`getNavigation`,
- *                         `getSiteSettings`) are excluded on purpose — the
- *                         shell must survive a content outage.
+ * QA hooks (read from `.env.local`, never committed):
+ *   VITE_SEED_LATENCY_MS     simulated round-trip, default 120
+ *   VITE_DEMO_FAIL=1         every read/write rejects, so each page's loading,
+ *                            empty and error states can be inspected. The
+ *                            header/footer reads (`getNavigation`,
+ *                            `getSiteSettings`) are excluded on purpose — the
+ *                            shell must survive a content outage.
+ *   VITE_DEMO_FAIL_WRITES=1  reads succeed and only `createBookingRequest`
+ *                            rejects, so the request form's submit-failure
+ *                            and retry path can be inspected end to end.
  */
 
 const LATENCY = Number(import.meta.env?.VITE_SEED_LATENCY_MS ?? 120);
 const FAIL = import.meta.env?.VITE_DEMO_FAIL === "1";
+const FAIL_WRITES = import.meta.env?.VITE_DEMO_FAIL_WRITES === "1";
 
 const wait = () => (LATENCY > 0 ? new Promise((r) => setTimeout(r, LATENCY)) : Promise.resolve());
 
@@ -28,6 +32,50 @@ function failIfSimulated(where) {
 
 const byId = (list, id) => list.find((item) => item.id === id) ?? null;
 const active = (list) => list.filter((item) => item.status !== "archived");
+
+/** Two identical submissions closer together than this are one request. */
+const DUPLICATE_WINDOW_MS = 10 * 60 * 1000;
+
+const pad = (n, width = 2) => String(n).padStart(width, "0");
+
+/**
+ * A readable, human-quotable reference: `CD-20261009-142301`.
+ * Date + time of creation, so a customer can read it out over the phone and
+ * support can sort on it. Uniqueness is enforced by `uniqueReference`.
+ */
+function referenceBase(date) {
+  const stamp =
+    `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}` +
+    `-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+  return `CD-${stamp}`;
+}
+
+function uniqueReference(list, base) {
+  let candidate = base;
+  let suffix = 2;
+  while (list.some((record) => record.reference === candidate)) {
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  return candidate;
+}
+
+/**
+ * Everything that makes a submission "the same request" for dedupe purposes.
+ * Deliberately excludes free-text notes: a driver adding a flight number on
+ * a retry is still retrying, not asking for a second car.
+ */
+function idempotencyKeyFor(payload) {
+  const customer = payload.customer ?? {};
+  return [
+    payload.vehicleId ?? "",
+    payload.pickupDate ?? "",
+    payload.returnDate ?? "",
+    payload.pickupLocationId ?? "",
+    (customer.email ?? "").trim().toLowerCase(),
+    (customer.phone ?? "").trim(),
+  ].join("|");
+}
 
 export const seedAdapter = {
   name: "seed",
@@ -141,18 +189,53 @@ export const seedAdapter = {
   },
 
   // --------------------------------------------------------------- bookings
+  /**
+   * Create a booking request.
+   *
+   * Two guarantees the public site depends on:
+   *
+   *  - **Stable reference.** The reference is built once from the creation
+   *    clock and checked against the store, so it can never be handed out
+   *    twice and it never changes afterwards.
+   *  - **No accidental duplicates.** An identical submission (same vehicle,
+   *    dates, location and contact) inside `DUPLICATE_WINDOW_MS` returns the
+   *    request that already exists instead of creating a second one. A retry
+   *    after a network error therefore cannot double-book.
+   *
+   * The Firestore adapter must reproduce both with a deterministic document
+   * ID derived from `idempotencyKey` (see `src/lib/firebase/README.md`).
+   */
   async createBookingRequest(payload) {
     await wait();
     failIfSimulated("createBookingRequest");
-    const now = new Date().toISOString();
+    if (FAIL_WRITES) {
+      throw new Error("[seed] simulated write failure in createBookingRequest (VITE_DEMO_FAIL_WRITES=1)");
+    }
+
+    const idempotencyKey = idempotencyKeyFor(payload);
+    const nowMs = Date.now();
+
+    const duplicate = seed.bookingRequests.find(
+      (record) =>
+        record.idempotencyKey === idempotencyKey &&
+        nowMs - Date.parse(record.createdAt) < DUPLICATE_WINDOW_MS,
+    );
+    if (duplicate) return duplicate;
+
+    const created = new Date(nowMs);
+    const reference = uniqueReference(seed.bookingRequests, referenceBase(created));
+    const now = created.toISOString();
+
     const record = {
-      id: `req_${Date.now().toString(36)}`,
-      reference: `CD-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+      id: `req_${reference.slice(3)}`,
+      reference,
+      idempotencyKey,
       status: "pending",
       createdAt: now,
       updatedAt: now,
       ...payload,
     };
+
     seed.bookingRequests.unshift(record);
     return record;
   },

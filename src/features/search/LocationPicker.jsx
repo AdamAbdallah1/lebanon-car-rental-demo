@@ -118,7 +118,9 @@ export function LocationPicker({ locations, groups, value, onChange, id, describ
         }}
         className={cn(
           "flex w-full min-w-0 items-center gap-2.5 rounded-md border bg-surface px-3 py-2.5",
-          "text-left text-body-sm transition-colors duration-[180ms] ease-out",
+          // text-start, not text-left: in Arabic the trigger runs right-to-left
+          // and the label must hug the leading pin icon on the right.
+          "text-start text-body-sm transition-colors duration-[180ms] ease-out",
           "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
           invalid ? "border-status-closed" : "border-line hover:border-line-strong",
         )}

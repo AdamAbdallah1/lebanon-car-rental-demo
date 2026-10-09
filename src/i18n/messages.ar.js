@@ -35,8 +35,11 @@ export const ar = {
   "hero.titleEmphasis": "لبنان",
   "hero.lede":
     "استلم سيارتك من مطار بيروت، أو من مكتب في المدينة، أو تُسلَّم إلى فندقك. أسعار يومية واضحة، تأمينات معلنة، وشخص حقيقي على واتساب.",
-  "hero.imageAlt": "سيارة معتمرة متوقفة على طريق ساحلي في ضوء النهار",
+  "hero.imageAlt": "سيارة تأجير بمحرك دفع رباعي في منظر جبلي في ضوء الساعة الذهبية",
   "hero.scroll": "تصفّح الأسطول",
+  "hero.trust.delivery": "المطار والمدينة والتوصيل إلى الفندق",
+  "hero.trust.pricing": "الأسعار والتأمينات معلَنة من البداية",
+  "hero.trust.request": "اطلب أولًا — دون خصم أي بطاقة",
 
   "search.legend": "ابدأ فترة التأجير",
   "search.pickupLocation": "موقع الاستلام",
@@ -71,7 +74,7 @@ export const ar = {
   "fleet.sort.label": "الترتيب",
   "fleet.sort.priceAsc": "السعر: من الأقل إلى الأعلى",
   "fleet.sort.priceDesc": "السعر: من الأعلى إلى الأقل",
-  "fleet.sort.name": "الاسم",
+  "fleet.sort.recommended": "المُوصى به",
   "fleet.results": "عرض {count} من {total}",
   "fleet.empty.title": "لا توجد سيارات مطابقة لهذا التصفية",
   "fleet.empty.body": "جرّب فئة أخرى أو امسح التصفية لعرض الأسطول كاملًا.",
@@ -151,7 +154,7 @@ export const ar = {
   "pricing.total": "الإجمالي",
   "pricing.deposit": "تأمين مسترد",
   "pricing.mileageIncluded": "{count} كم مشمول يوميًا",
-  "pricing.mileageOverage": "{amount} للكيلومètre بعد ذلك",
+  "pricing.mileageOverage": "{amount} للكيلومتر بعد ذلك",
   "pricing.weeklyDiscount": "سعر الأسبوع −{pct}٪",
   "pricing.monthlyDiscount": "سعر الشهر −{pct}٪",
   "pricing.vat": "تُضاف ضريبة القيمة المضافة ١١٪ عند التأكيد",
@@ -318,4 +321,80 @@ export const ar = {
   "lang.current": "اللغة الحالية: العربية",
 
   "demo.notice": "نسخة تجريبية — البيانات مولّدة ولن يتم إنشاء أي حجز حقيقي.",
+
+  // ---- عوامل تصفية الرحلة -----------------------------------------------
+  "fleet.filter.any": "الكل",
+  "fleet.filter.passengers": "الركاب",
+  "fleet.filter.luggage": "الأمتعة",
+  "fleet.filter.passengersOption": "{count} ركاب أو أكثر",
+  "fleet.filter.luggageOption": "{count} حقائب أو أكثر",
+
+  // ---- صفحة الموقع ------------------------------------------------------
+  "locations.fee.delivery": "رسوم التوصيل",
+  "locations.guidance": "ماذا تتوقع عند الاستلام",
+  "locations.guidance.confirm": "تُؤكَّد الأوقات وتسليم السيارة عندما نرد على طلبك.",
+  "locations.flag.counter": "المكتب",
+  "locations.flag.counterPresent": "مكتب باشخاص في الموقع",
+  "locations.flag.deliveryOnly": "توصيل فقط، بلا مكتب",
+  "locations.flag.return": "الإرجاع",
+  "locations.flag.returnDiff": "يمكن إرجاعها إلى نقطة أخرى",
+  "locations.flag.returnSame": "تُستلام وتُرجَع هنا",
+  "locations.vehicles.title": "السيارات المتاحة من هنا",
+  "locations.vehicles.lede": "كل سيارة يمكن استلامها من هذه النقطة، مع سعرها اليومي.",
+  "locations.vehicles.forDates": "الأسعار محسوبة بتواريخ الاستلام والإرجاع من بحثك.",
+  "locations.vehicles.all": "عرض كل السيارات المتاحة هنا ({count})",
+  "locations.vehicles.empty.title": "لا توجد قائمة سيارات لهذه النقطة بعد",
+  "locations.vehicles.empty.body":
+    "تُحدَّد السيارات التي تصل إلى هذه النقطة مع فريقنا — أرسل طلبًا وسنطابق واحدة مع تواريخك.",
+
+  // ---- تفصيل السعر -------------------------------------------------------
+  "quote.title": "تفصيل السعر",
+  "quote.charges": "أجور التأجير",
+  "quote.fees": "رسوم إلزامية",
+  "quote.subtotal": "المجموع الفرعي للتأجير",
+  "quote.vatLine": "ضريبة القيمة المضافة {pct}٪ — تُضاف عند التأكيد",
+  "quote.totalExVat": "إجمالي التأجير دون الضريبة",
+  "quote.totalIncVat": "الإجمالي شامل ضريبة القيمة المضافة {pct}٪",
+  "quote.vatNote": "لا يُخصم أي مبلغ عند إرسال الطلب. تُضاف الضريبة عندما نؤكد الحجز.",
+  "quote.depositTitle": "تأمين مسترد",
+  "quote.depositNote":
+    "يُحتجَز عند استلام السيارة ويُعاد عند إرجاعها، وليس جزءًا من أجور التأجير.",
+  "quote.extrasTitle": "إضافات اختيارية",
+  "quote.extrasNone": "لم يتم اختيار أي إضافة",
+  "quote.extrasNote":
+    "مقاعد الأطفال والسائق الثاني وواي فاي الجوال تُرتَّب مع الفريق وتُسعَّر قبل تأكيدك.",
+  "quote.mileageTitle": "المسافة والتأمين",
+  "quote.excess": "مبلغ التحمل لكل حادث: {amount}",
+  "quote.empty": "أضف تاريخي الاستلام والإرجاع لعرض عرض سعر مفصّل.",
+  "quote.pickupNote": "الاستلام والإرجاع في {location}.",
+
+  // ---- مسار الطلب --------------------------------------------------------
+  "booking.heading.vehicle": "السيارة ونقطة الاستلام",
+  "booking.step.back": "رجوع",
+  "booking.step.continue": "متابعة",
+  "booking.progress.label": "خطوات الطلب",
+  "booking.progress.note": "لا يُخصم شيء ولا يُحجز شيء بينما تعبئ هذه الخطوات.",
+  "booking.review.title": "راجع طلبك",
+  "booking.review.edit": "تعديل",
+  "booking.review.requirements": "ما ستحتاجه عند استلام السيارة",
+  "booking.review.requirementsNote":
+    "تُفحص هذه عند استلام السيارة، لا عند إرسال الطلب. اقرأ شروط التأجير كاملة قبل الحجز.",
+  "booking.next.title": "ماذا يحدث بعد ذلك",
+  "booking.next.1": "طلبك في قائمة المراجعة. لم يُحجز شيء بعد.",
+  "booking.next.2":
+    "نتحقق من السيارة والتواريخ ونقطة الاستلام، ثم نرد بتأكيد أو ببديل مناسب.",
+  "booking.next.3":
+    "عند استلام السيارة نفحص رخصتك وهويتك ونستلم التأمين المسترد.",
+  "booking.reference.hint": "احتفظ بهذا الرقم — اذكره في أي رد منا.",
+  "booking.error.conflict":
+    "تم حجز هذه السيارة لهذه التواريخ أثناء تعبئة النموذج. اختر تواريخ أخرى وأعد الإرسال.",
+  "booking.unavailable.action": "غيّر التواريخ",
+  "booking.validation.past": "اختر اليوم أو تاريخًا لاحقًا.",
+  "booking.validation.locationMismatch":
+    "لا تُسلَّم هذه السيارة من {location}. اختر نقطة استلام أخرى.",
+  "booking.availability.available": "متاحة في تواريخك.",
+  "booking.availability.limited": "محدودة في تواريخك — نؤكّدها قبل أي حجز.",
+  "booking.availability.unavailable": "محجوزة بالفعل في تواريخك.",
+  "booking.availability.onRequest": "متاحة عند الطلب.",
+  "booking.availability.note": "مؤشر فقط — يُؤكَّد التوفر عندما نرد عليك.",
 };

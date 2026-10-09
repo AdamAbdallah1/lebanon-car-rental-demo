@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { cn } from "../../lib/cn.js";
 import { useLocaleContext, usePick } from "../../i18n/context.js";
 import { formatMoney } from "../../lib/money.js";
+import { useJourneyLink } from "../search/useJourneyLink.js";
 import Button from "../../components/ui/Button.jsx";
 import Icon from "../../components/ui/Icon.jsx";
 import { availabilityLabelKey } from "../fleet/vehicleDisplay.js";
@@ -117,8 +118,10 @@ export function BookingRail({ vehicle, quote, availabilityState, compact = false
   const name = pickLocalized(vehicle.name, locale, vehicle.model);
   const blocked = availabilityState === "unavailable";
 
-  const params = new URLSearchParams();
-  if (vehicle.id) params.set("vehicle", vehicle.id);
+  // The pick-up point and dates the customer already chose travel with the
+  // request — `/book` reads them straight out of this query string.
+  const journeyLink = useJourneyLink();
+  const bookHref = journeyLink(`/book?vehicle=${encodeURIComponent(vehicle.id)}`);
 
   const whatsappNumber = "+96171000000";
   const waDigits = whatsappNumber.replace(/[^\d]/g, "");
@@ -160,7 +163,7 @@ export function BookingRail({ vehicle, quote, availabilityState, compact = false
         ) : (
           <Button
             as={Link}
-            to={`/book?vehicle=${encodeURIComponent(vehicle.id)}`}
+            to={bookHref}
             size={compact ? "md" : "lg"}
             className={compact ? "whitespace-nowrap" : "w-full"}
           >

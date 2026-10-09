@@ -2,11 +2,13 @@ import { Link } from "react-router-dom";
 import { useLocaleContext } from "../../i18n/context.js";
 import { repositories } from "../../lib/repositories/index.js";
 import { useAsyncData } from "../../hooks/useAsyncData.js";
+import { useJourneyLink } from "../../features/search/useJourneyLink.js";
 import Wordmark from "./Wordmark.jsx";
 import Icon from "../ui/Icon.jsx";
 
 function Column({ title, links }) {
   const { t } = useLocaleContext();
+  const journeyLink = useJourneyLink();
   return (
     <div>
       <h2 className="label-micro mb-3 text-ink-faint">{title}</h2>
@@ -14,8 +16,8 @@ function Column({ title, links }) {
         {links.map((link) => (
           <li key={link.id}>
             <Link
-              to={link.href}
-              className="inline-flex min-h-11 items-center text-body-sm text-ink-soft transition-colors duration-[180ms] hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              to={journeyLink(link.href)}
+              className="flex w-full min-h-11 items-center text-body-sm text-ink-soft transition-colors duration-[180ms] hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               {t(link.labelKey)}
             </Link>

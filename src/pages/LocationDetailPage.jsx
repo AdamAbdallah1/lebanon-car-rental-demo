@@ -1,12 +1,19 @@
+import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useLocaleContext, usePick } from "../i18n/context.js";
 import { useDocumentMeta } from "../hooks/useDocumentMeta.js";
 import { repositories } from "../lib/repositories/index.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
+import { useJourneyLink } from "../features/search/useJourneyLink.js";
+import { useSearchState } from "../features/search/useSearchState.js";
+import { formatMoney } from "../lib/money.js";
 import PageHeader from "../components/layout/PageHeader.jsx";
 import Button from "../components/ui/Button.jsx";
 import Icon from "../components/ui/Icon.jsx";
-import { formatMoney } from "../lib/money.js";
+import { FleetGrid } from "../features/fleet/FleetStates.jsx";
+import VehicleCard from "../features/fleet/VehicleCard.jsx";
+import { quoteVehicle } from "../lib/pricing/pricingService.js";
+import { withAvailability } from "../lib/availability/availabilityService.js";
 
 function DetailRow({ label, value }) {
   return (
@@ -23,11 +30,53 @@ export function LocationDetailPage() {
   const { locationId } = useParams();
   const { t, locale } = useLocaleContext();
   const pickLocalized = usePick();
+  const journeyLink = useJourneyLink();
+  const { state: searchState } = useSearchState();
 
   const { data: location, loading, error, reload } = useAsyncData(
     () => repositories.getLocationById(locationId),
     [locationId],
   );
+
+  // What can actually be collected here, plus the seeded handover guidance
+  // that applies to this kind of point. Both come from the repository — no
+  // page-level data access and no invented instructions.
+  const { data: onsite } = useAsyncData(
+    async () => {
+      const [vehicles, blocks, categories, services, ratePlans] = await Promise.all([
+        repositories.queryVehicles({ locationId }),
+        repositories.queryAllBlockPeriods(),
+        repositories.queryCategories(),
+        repositories.getServices(),
+        repositories.queryRatePlans(),
+      ]);
+      return { vehicles, blocks, categories, services, ratePlan: ratePlans?.[0] ?? null };
+    },
+    [locationId],
+    { keepPrevious: true },
+  );
+
+  // Priced with the renter's own dates when they travelled here with the
+  // journey, so the figures match the fleet and the request form.
+  const onsiteItems = useMemo(() => {
+    if (!onsite) return [];
+    const range =
+      searchState.pickupDate && searchState.returnDate
+        ? { pickupDate: searchState.pickupDate, returnDate: searchState.returnDate }
+        : {};
+    return withAvailability(onsite.vehicles, onsite.blocks, range).map(
+      ({ vehicle, availability }) => ({
+        vehicle,
+        availability,
+        quote: quoteVehicle(vehicle, {
+          pickupDate: range.pickupDate ?? null,
+          returnDate: range.returnDate ?? null,
+          pickupLocation: location ?? null,
+          ratePlan: onsite.ratePlan,
+        }),
+      }),
+    );
+  }, [onsite, location, searchState.pickupDate, searchState.returnDate]);
 
   useDocumentMeta({
     title: location
@@ -92,6 +141,18 @@ export function LocationDetailPage() {
   const name = pickLocalized(location.shortName ?? location.name, locale);
   const fee = location.serviceFee ?? 0;
 
+  // Seeded handover guidance that matches this kind of point. City and
+  // office points have no authored guidance, so none is shown rather than
+  // inventing instructions.
+  const guidanceServiceId = location.deliveryOnly
+    ? "delivery"
+    : location.type === "airport"
+      ? "airport-meet"
+      : null;
+  const guidance = guidanceServiceId
+    ? ((onsite?.services ?? []).find((service) => service.id === guidanceServiceId) ?? null)
+    : null;
+
   return (
     <>
       <PageHeader
@@ -99,7 +160,11 @@ export function LocationDetailPage() {
         title={name}
         lede={pickLocalized(location.address, locale)}
         actions={
-          <Button as={Link} to="/fleet" variant="primary">
+          <Button
+            as={Link}
+            to={journeyLink(`/fleet?loc=${encodeURIComponent(location.id)}`)}
+            variant="primary"
+          >
             {t("search.submit")}
             <Icon name={locale === "ar" ? "arrowLeft" : "arrowRight"} size={15} />
           </Button>
@@ -131,11 +196,34 @@ export function LocationDetailPage() {
                 }
               />
               <DetailRow label={t("spec.availability")} value={location.status === "active" ? t("card.availability.available") : t("card.availability.unavailable")} />
+              <DetailRow
+                label={t("locations.flag.counter")}
+                value={location.deliveryOnly ? t("locations.flag.deliveryOnly") : t("locations.flag.counterPresent")}
+              />
+              <DetailRow
+                label={t("locations.flag.return")}
+                value={location.allowsDifferentReturn ? t("locations.flag.returnDiff") : t("locations.flag.returnSame")}
+              />
             </dl>
+
+            {guidance ? (
+              <section aria-labelledby="location-guidance" className="rounded-lg border border-line bg-surface p-5">
+                <h2 id="location-guidance" className="text-title-3 font-medium text-ink">
+                  {t("locations.guidance")}
+                </h2>
+                <p className="mt-2 flex items-start gap-2.5 text-body-sm leading-relaxed text-ink-soft">
+                  <Icon name="info" size={15} className="mt-0.5 shrink-0 text-accent" />
+                  <span>{pickLocalized(guidance.body, locale)}</span>
+                </p>
+                <p className="mt-3 text-caption text-ink-muted">
+                  {t("locations.guidance.confirm")}
+                </p>
+              </section>
+            ) : null}
 
             <div className="flex flex-wrap gap-3">
               <Link
-                to={`/fleet?loc=${encodeURIComponent(location.id)}`}
+                to={journeyLink(`/fleet?loc=${encodeURIComponent(location.id)}`)}
                 className="inline-flex min-h-12 items-center gap-2 rounded-md bg-accent px-5 font-mono text-body-sm text-white transition-colors hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 {t("locations.pickup")}
@@ -181,6 +269,69 @@ export function LocationDetailPage() {
               {t("demo.notice")}
             </p>
           </aside>
+        </div>
+      </section>
+
+      <section className="block-pad border-t border-line" aria-labelledby="location-fleet">
+        <div className="container-page">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+            <h2
+              id="location-fleet"
+              className="font-display text-display-3 text-ink"
+              data-display-font
+            >
+              {t("locations.vehicles.title")}
+            </h2>
+            <p className="label-micro text-ink-faint" data-keep-mono>
+              {t("fleet.filter.count", { count: onsiteItems.length })}
+            </p>
+          </div>
+
+          <p className="mt-3 max-w-2xl text-body-sm leading-relaxed text-ink-muted">
+            {searchState.pickupDate && searchState.returnDate
+              ? t("locations.vehicles.forDates")
+              : t("locations.vehicles.lede")}
+          </p>
+
+          {onsiteItems.length === 0 ? (
+            <div className="mt-6 rounded-lg border border-dashed border-line-strong bg-surface-sunken px-6 py-12 text-center">
+              <p className="text-title-3 font-medium text-ink">
+                {t("locations.vehicles.empty.title")}
+              </p>
+              <p className="mx-auto mt-2 max-w-md text-body-sm text-ink-soft">
+                {t("locations.vehicles.empty.body")}
+              </p>
+            </div>
+          ) : (
+            <>
+              <FleetGrid className="mt-6">
+                {onsiteItems.slice(0, 8).map(({ vehicle, quote, availability }) => (
+                  <VehicleCard
+                    key={vehicle.id}
+                    vehicle={vehicle}
+                    quote={quote}
+                    availability={availability}
+                    category={
+                      onsite?.categories.find((c) => c.id === vehicle.categoryId) ?? null
+                    }
+                    inclusions={[]}
+                  />
+                ))}
+              </FleetGrid>
+
+              {onsiteItems.length > 8 ? (
+                <div className="mt-6">
+                  <Link
+                    to={journeyLink(`/fleet?loc=${encodeURIComponent(location.id)}`)}
+                    className="inline-flex min-h-11 items-center gap-2 font-mono text-body-sm text-ink transition-colors hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
+                    {t("locations.vehicles.all", { count: onsiteItems.length })}
+                    <Icon name={locale === "ar" ? "arrowLeft" : "arrowRight"} size={15} />
+                  </Link>
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
       </section>
     </>

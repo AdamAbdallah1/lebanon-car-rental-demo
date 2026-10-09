@@ -16,20 +16,13 @@ export function useSearchState() {
       setSearchParams(
         (current) => {
           const merged = new URLSearchParams(current);
-          const incoming = readSearchState(
-            new URLSearchParams(searchQuery({ ...readSearchState(current), ...next })),
-          );
+          // Merge over the normalised current state so a partial patch such
+          // as { locationId } keeps dates, category, sort and trip filters.
+          const incoming = { ...readSearchState(current), ...next };
 
           for (const key of Object.values(SEARCH_KEYS)) merged.delete(key);
-          if (incoming.locationId) merged.set(SEARCH_KEYS.loc, incoming.locationId);
-          if (incoming.pickupDate) merged.set(SEARCH_KEYS.from, incoming.pickupDate);
-          if (incoming.returnDate) merged.set(SEARCH_KEYS.to, incoming.returnDate);
-          if (incoming.category && incoming.category !== "all") {
-            merged.set(SEARCH_KEYS.cat, incoming.category);
-          }
-          if (incoming.sort && incoming.sort !== "sortOrder") {
-            merged.set(SEARCH_KEYS.sort, incoming.sort);
-          }
+          const written = new URLSearchParams(searchQuery(incoming));
+          for (const [key, value] of written) merged.set(key, value);
           return merged;
         },
         { replace: options.replace ?? true },
