@@ -1,5 +1,6 @@
 import { getFirestore } from "./app.js";
 import { FirebaseNotConfiguredError } from "./config.js";
+import { VEHICLE_STATUSES } from "../fleet/vehicleInput.js";
 
 /**
  * Firestore adapter — implements the same repository contract as the seed
@@ -21,6 +22,12 @@ import { FirebaseNotConfiguredError } from "./config.js";
  *     (`functions/src/`), because `firestore.rules` denies client writes to
  *     `bookingRequests` outright.
  */
+
+/**
+ * How many vehicles the console will read in one query. A fleet larger than
+ * this is a real limit, so the UI states it rather than silently truncating.
+ */
+const FLEET_FETCH_CAP = 500;
 
 async function fs() {
   const db = await getFirestore();
@@ -92,15 +99,103 @@ export const firestoreAdapter = {
     }
   },
 
+  /** The console's read: an archived vehicle still exists and must open. */
+  async getVehicleForAdmin(id) {
+    try {
+      return await readOne("vehicles", id);
+    } catch (error) {
+      throw wrap(error, "getVehicleForAdmin");
+    }
+  },
+
   async getVehicleBySlug(slug) {
     const rows = await list("vehicles", { whereClause: ["slug", "==", slug] });
     return rows.find((v) => v.status !== "archived") ?? null;
   },
 
+  /**
+   * The fleet as an authoring surface: every status, no public filter.
+   *
+   * One `in` query on a single field (which needs no composite index), then
+   * the same in-memory filter and sort the public query uses, so an operator
+   * and a customer never compute a different list from the same documents.
+   */
+  async queryAllVehicles(filters = {}) {
+    let rows;
+    try {
+      rows = await list("vehicles", {
+        whereClause: ["status", "in", ["active", "draft", "archived"]],
+        max: FLEET_FETCH_CAP,
+      });
+    } catch (error) {
+      throw wrap(error, "queryAllVehicles");
+    }
+
+    if (filters.status && filters.status !== "all") {
+      rows = rows.filter((v) => v.status === filters.status);
+    }
+    if (filters.categoryId && filters.categoryId !== "all") {
+      rows = rows.filter((v) => v.categoryId === filters.categoryId);
+    }
+    if (filters.availability && filters.availability !== "all") {
+      rows = rows.filter((v) => v.availability === filters.availability);
+    }
+    if (filters.term) {
+      const term = filters.term.trim().toLowerCase();
+      rows = rows.filter((v) => {
+        const haystack = [v.slug, v.make, v.model, v.name?.en, v.name?.ar, v.id]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(term);
+      });
+    }
+
+    const sort = filters.sort ?? "sortOrder";
+    rows = [...rows].sort((a, b) => {
+      if (sort === "priceAsc") return a.pricing.daily - b.pricing.daily;
+      if (sort === "priceDesc") return b.pricing.daily - a.pricing.daily;
+      if (sort === "name") return a.name.en.localeCompare(b.name.en);
+      if (sort === "updatedAt") return String(b.updatedAt).localeCompare(String(a.updatedAt));
+      return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    });
+
+    return rows;
+  },
+
+  /** Assigns the id; `slug` stays a field so it can be renamed without moving. */
+  async createVehicle(input) {
+    const { db, collection, doc, setDoc } = await fs();
+    const fields = {};
+    for (const [key, value] of Object.entries(input)) {
+      if (key.startsWith("_")) continue;
+      fields[key] = value;
+    }
+    const now = new Date().toISOString();
+    const ref = doc(collection(db, "vehicles"));
+    await setDoc(ref, { ...fields, createdAt: now, updatedAt: now });
+    return { id: ref.id, ...fields, createdAt: now, updatedAt: now };
+  },
+
+  /**
+   * Patches only what changed. `updatedAt` is an ISO string, like every other
+   * timestamp in this data model — a Firestore `Timestamp` sentinel would make
+   * the fleet editor and the public site disagree about a vehicle's type.
+   */
   async updateVehicle(id, patch) {
-    const { db, doc, updateDoc, serverTimestamp } = await fs();
-    await updateDoc(doc(db, "vehicles", id), { ...patch, updatedAt: serverTimestamp() });
+    const { db, doc, updateDoc } = await fs();
+    const keys = Object.keys(patch);
+    if (keys.length) {
+      await updateDoc(doc(db, "vehicles", id), { ...patch, updatedAt: new Date().toISOString() });
+    }
     return this.getVehicleById(id);
+  },
+
+  async setVehicleStatus(id, status) {
+    if (!VEHICLE_STATUSES.includes(status)) {
+      throw new Error(`invalid vehicle status: ${status}`);
+    }
+    return this.updateVehicle(id, { status });
   },
 
   async archiveVehicle(id) {

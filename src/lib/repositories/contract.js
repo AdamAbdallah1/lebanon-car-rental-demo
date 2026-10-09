@@ -37,9 +37,12 @@
  *
  * @typedef {Object} RepositoryAdapter
  * @property {(filters?: VehicleFilters) => Promise<Vehicle[]>} queryVehicles
+ * @property {(filters?: VehicleFilters) => Promise<Vehicle[]>} queryAllVehicles
  * @property {(id: string) => Promise<Vehicle|null>} getVehicleById
  * @property {(slug: string) => Promise<Vehicle|null>} getVehicleBySlug
  * @property {(id: string, patch: object) => Promise<Vehicle>} updateVehicle
+ * @property {(input: object) => Promise<Vehicle>} createVehicle
+ * @property {(id: string, status: 'active'|'draft'|'archived') => Promise<Vehicle>} setVehicleStatus
  * @property {(id: string) => Promise<Vehicle>} archiveVehicle
  *
  * @property {() => Promise<Category[]>} queryCategories

@@ -92,15 +92,21 @@ The console is a separate route group from the public site — it does not share
 the public shell, header or footer, and it is guarded by `AdminRoot`.
 
 ```
-/admin                → redirects to /admin/bookings
+/admin                → redirects to the first section this role may open
 /admin/sign-in        → sign-in (deliberately outside the shell)
 /admin/bookings       → the queue (the work surface)
 /admin/bookings/:id  → one request + its history
+/admin/fleet          → the fleet, every publish state
+/admin/fleet/new     → a blank draft
+/admin/fleet/:id      → one vehicle, editable
 /admin/*              → AdminNotFound
 ```
 
 `App.jsx` lazy-loads `AdminRoot`, so none of this code (and none of the Firebase
 Auth SDK) is downloaded by a public visitor.
+
+`/admin` sends an editor to `/admin/fleet` and an agent to `/admin/bookings` —
+never to a page the guard will immediately refuse.
 
 ### Session states
 
@@ -145,6 +151,32 @@ cancel directly against Firestore, and `rules` denies those writes anyway.
 * Each decision appends an audit entry (who, when, from → to, note, dates) and
   the panel reloads the document rather than assuming the write landed.
 
+### The fleet
+
+`FleetPage` lists **every** publish state, because an operator has to find the
+draft they abandoned and restore the car they archived by mistake. The public
+fleet page keeps its own filter — `queryVehicles` only ever returns `active`.
+
+`VehicleEditorPage` holds strings and decides nothing:
+
+* `normalizeVehicleInput()` builds the document and `validateVehicleInput()`
+  decides whether it is complete. Both are in `src/lib/fleet/vehicleInput.js`,
+  which is the client half of the deal that `validVehicle()` in
+  `firestore.rules` is the other half of. An input the UI accepts is an input
+  the rules accept.
+* `vehiclePatch()` saves the **diff**, so an untouched field is never sent. That
+  is what keeps `vehicleMutableKeys` satisfied and stops an accidental blank
+  from erasing a good value.
+* `updatedAt` is an ISO string, like every other timestamp in this model — not a
+  Firestore `Timestamp` sentinel, which would make the console and the
+  storefront disagree about a field's type.
+* Publish / withdraw / archive write **only** the status; saving writes the
+  fields. They are separate actions on purpose.
+
+Because the console writes the same `/vehicles` documents the storefront reads,
+a change made here is live on the public site on the next read — there is no
+second copy of the fleet to sync.
+
 ### Roles and navigation
 
 `capabilities.js` is the single source of truth for what a role may do, in both
@@ -157,8 +189,17 @@ can("agent",  "content.write")   // false  → AdminForbidden
 ```
 
 A role that cannot open a section sees a page that says so; it does not see a
-broken shell. Sections that do not exist yet (fleet, content) are absent from
-`ADMIN_SECTIONS`, so the nav only ever lists routes that actually render.
+broken shell. Sections whose routes do not exist yet are absent from
+`ADMIN_SECTIONS`, so the nav only ever lists routes that actually render:
+
+| Section | `admin` | `editor` | `agent` |
+| --- | --- | --- | --- |
+| `/admin/bookings` | yes | — | yes |
+| `/admin/fleet` | yes | yes | — |
+
+An editor never reaches `/admin/bookings`, so it never sees customer data; an
+agent never reaches `/admin/fleet`. That is enforced again by the rules — this
+table is only what the UI happens to show.
 
 ---
 

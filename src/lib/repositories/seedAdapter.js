@@ -14,6 +14,7 @@ import {
   normalizeDecisionInput,
   publicStatusOf,
 } from "../booking/bookingDecision.js";
+import { VEHICLE_STATUSES, slugify } from "../fleet/vehicleInput.js";
 
 /**
  * Seed adapter — the local, Firestore-shaped data source used until a real
@@ -114,6 +115,52 @@ export const seedAdapter = {
     return v && v.status !== "archived" ? v : null;
   },
 
+  /** The console's read: an archived vehicle still exists and must open. */
+  async getVehicleForAdmin(id) {
+    await wait();
+    return byId(seed.vehicles, id);
+  },
+
+  /**
+   * Every status, no public filter — the authoring view. Same filters and sort
+   * as the Firestore adapter's, so one UI serves both data sources.
+   */
+  async queryAllVehicles(filters = {}) {
+    await wait();
+    let list = [...seed.vehicles];
+
+    if (filters.status && filters.status !== "all") {
+      list = list.filter((v) => v.status === filters.status);
+    }
+    if (filters.categoryId && filters.categoryId !== "all") {
+      list = list.filter((v) => v.categoryId === filters.categoryId);
+    }
+    if (filters.availability && filters.availability !== "all") {
+      list = list.filter((v) => v.availability === filters.availability);
+    }
+    if (filters.term) {
+      const term = filters.term.trim().toLowerCase();
+      list = list.filter((v) =>
+        [v.slug, v.make, v.model, v.name?.en, v.name?.ar, v.id]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(term),
+      );
+    }
+
+    const sort = filters.sort ?? "sortOrder";
+    list = list.sort((a, b) => {
+      if (sort === "priceAsc") return a.pricing.daily - b.pricing.daily;
+      if (sort === "priceDesc") return b.pricing.daily - a.pricing.daily;
+      if (sort === "name") return a.name.en.localeCompare(b.name.en);
+      if (sort === "updatedAt") return String(b.updatedAt).localeCompare(String(a.updatedAt));
+      return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    });
+
+    return list;
+  },
+
   async getVehicleBySlug(slug) {
     await wait();
     failIfSimulated("getVehicleBySlug");
@@ -129,7 +176,32 @@ export const seedAdapter = {
     return v;
   },
 
+  /** seed: no database to assign an id, so the slug is the document id. */
+  async createVehicle(input) {
+    await wait();
+    const id = slugify(input.slug);
+    if (!id) throw new Error("[seed] createVehicle requires a usable slug");
+    if (byId(seed.vehicles, id)) throw new Error(`vehicle already exists: ${id}`);
+    const now = new Date().toISOString();
+    const fields = {};
+    for (const [key, value] of Object.entries(input)) {
+      if (key.startsWith("_")) continue;
+      fields[key] = value;
+    }
+    const created = { id, ...fields, createdAt: now, updatedAt: now };
+    seed.vehicles.push(created);
+    return created;
+  },
+
+  async setVehicleStatus(id, status) {
+    if (!VEHICLE_STATUSES.includes(status)) {
+      throw new Error(`invalid vehicle status: ${status}`);
+    }
+    return this.updateVehicle(id, { status });
+  },
+
   async archiveVehicle(id) {
+    await wait();
     const v = byId(seed.vehicles, id);
     if (!v) throw new Error(`vehicle not found: ${id}`);
     return this.updateVehicle(id, { status: "archived" });

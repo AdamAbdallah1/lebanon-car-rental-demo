@@ -105,6 +105,18 @@ export const routes = [
         lazy: page(() => import("./pages/admin/BookingDetailPage.jsx")),
       },
       {
+        path: "fleet",
+        lazy: page(() => import("./pages/admin/FleetPage.jsx")),
+      },
+      {
+        path: "fleet/new",
+        lazy: page(() => import("./pages/admin/VehicleEditorPage.jsx")),
+      },
+      {
+        path: "fleet/:vehicleId",
+        lazy: page(() => import("./pages/admin/VehicleEditorPage.jsx")),
+      },
+      {
         path: "*",
         lazy: async () => {
           const mod = await import("./features/admin/AdminStates.jsx");

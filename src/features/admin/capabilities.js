@@ -15,9 +15,15 @@
  * offers a dead end.
  */
 export const GRANTS = Object.freeze({
-  admin: ["bookings:read", "bookings:decide", "content:write", "settings:write"],
+  admin: [
+    "bookings:read",
+    "bookings:decide",
+    "fleet:write",
+    "content:write",
+    "settings:write",
+  ],
   agent: ["bookings:read", "bookings:decide"],
-  editor: ["content:write"],
+  editor: ["fleet:write", "content:write"],
 });
 
 export function can(role, capability) {
@@ -25,8 +31,9 @@ export function can(role, capability) {
 }
 
 /**
- * Navigation entries. Stage 2 ships the booking queue; fleet and content
- * appear in later stages once their routes are real.
+ * Navigation entries. A section is listed here only once its route renders,
+ * so the navigation never offers a dead end — the fleet appears with Stage 3
+ * and content arrives with Stage 4.
  */
 export const ADMIN_SECTIONS = Object.freeze([
   {
@@ -35,6 +42,13 @@ export const ADMIN_SECTIONS = Object.freeze([
     labelKey: "admin.nav.bookings",
     icon: "calendar",
     capability: "bookings:read",
+  },
+  {
+    id: "fleet",
+    path: "/admin/fleet",
+    labelKey: "admin.nav.fleet",
+    icon: "key",
+    capability: "fleet:write",
   },
 ]);
 

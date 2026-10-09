@@ -16,9 +16,13 @@ import seedAdapter from "./seedAdapter.js";
 
 const METHOD_NAMES = [
   "queryVehicles",
+  "queryAllVehicles",
   "getVehicleById",
+  "getVehicleForAdmin",
   "getVehicleBySlug",
   "updateVehicle",
+  "createVehicle",
+  "setVehicleStatus",
   "archiveVehicle",
   "queryCategories",
   "getCategoryById",
