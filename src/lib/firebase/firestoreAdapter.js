@@ -1,6 +1,7 @@
 import { getFirestore } from "./app.js";
 import { FirebaseNotConfiguredError } from "./config.js";
 import { VEHICLE_STATUSES } from "../fleet/vehicleInput.js";
+import { CONTENT_STATUSES } from "../content/contentInput.js";
 
 /**
  * Firestore adapter — implements the same repository contract as the seed
@@ -161,7 +162,8 @@ export const firestoreAdapter = {
   async getVehicleById(id) {
     try {
       const v = await readOne("vehicles", id);
-      return v && v.status !== "archived" ? v : null;
+      // A draft is not a car anyone can book, even by guessing the URL.
+      return v && v.status === "active" ? v : null;
     } catch (error) {
       throw wrap(error, "getVehicleById");
     }
@@ -178,7 +180,7 @@ export const firestoreAdapter = {
 
   async getVehicleBySlug(slug) {
     const rows = await list("vehicles", { whereClause: ["slug", "==", slug] });
-    return rows.find((v) => v.status !== "archived") ?? null;
+    return rows.find((v) => v.status === "active") ?? null;
   },
 
   /**
@@ -285,7 +287,9 @@ export const firestoreAdapter = {
 
   async queryCategories() {
     const rows = await list("categories");
-    return rows.filter((c) => c.status !== "archived").sort((a, b) => a.sortOrder - b.sortOrder);
+    return rows
+      .filter((c) => c.status === undefined || c.status === "active")
+      .sort((a, b) => a.sortOrder - b.sortOrder);
   },
 
   async getCategoryById(id) {
@@ -298,7 +302,8 @@ export const firestoreAdapter = {
 
   async queryLocations(filters = {}) {
     let rows = await list("locations");
-    rows = rows.filter((l) => l.status !== "archived");
+    // Only published. A draft is not somewhere a customer can collect a car.
+    rows = rows.filter((l) => l.status === undefined || l.status === "active");
     if (filters.group) rows = rows.filter((l) => l.group === filters.group);
     if (filters.type) rows = rows.filter((l) => l.type === filters.type);
     return rows.sort((a, b) => a.sortOrder - b.sortOrder);
@@ -382,6 +387,58 @@ export const firestoreAdapter = {
     return list("blockPeriods");
   },
 
+  // ------------------------------------------------- content authoring (admin)
+  // Every status, no public filter — the authoring view. The public methods
+  // below keep their own `active`-only filtering, so a draft is never visible on
+  // the storefront.
+
+  async queryAllCategories(filters = {}) {
+    let rows = await list("categories");
+    if (filters.status && filters.status !== "all") {
+      rows = rows.filter((c) => c.status === filters.status);
+    }
+    if (filters.term) {
+      const term = filters.term.trim().toLowerCase();
+      rows = rows.filter((c) =>
+        [c.name?.en, c.name?.ar, c.slug].filter(Boolean).join(" ").toLowerCase().includes(term),
+      );
+    }
+    return rows.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  },
+
+  async queryAllLocations(filters = {}) {
+    let rows = await list("locations");
+    if (filters.status && filters.status !== "all") {
+      rows = rows.filter((l) => l.status === filters.status);
+    }
+    if (filters.group && filters.group !== "all") {
+      rows = rows.filter((l) => l.group === filters.group);
+    }
+    if (filters.term) {
+      const term = filters.term.trim().toLowerCase();
+      rows = rows.filter((l) =>
+        [l.name?.en, l.name?.ar, l.shortName?.en, l.code]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(term),
+      );
+    }
+    return rows.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  },
+
+  async queryAllOffers(filters = {}) {
+    let rows = await list("offers");
+    if (filters.status && filters.status !== "all") {
+      rows = rows.filter((o) => o.status === filters.status);
+    }
+    return rows.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  },
+
+  async queryAllFaqs() {
+    return list("faqs").sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  },
+
   async getHomeSections() {
     const rows = await list("homeSections");
     return rows.filter((s) => s.enabled !== false).sort((a, b) => a.sortOrder - b.sortOrder);
@@ -393,21 +450,127 @@ export const firestoreAdapter = {
 
   async getServices() {
     const rows = await list("services");
-    return rows.filter((s) => s.status !== "archived").sort((a, b) => a.sortOrder - b.sortOrder);
+    return rows
+      .filter((s) => s.status === "active")
+      .sort((a, b) => a.sortOrder - b.sortOrder);
   },
 
   async getOffers() {
     const rows = await list("offers");
-    return rows.filter((s) => s.status !== "archived").sort((a, b) => a.sortOrder - b.sortOrder);
+    return rows
+      .filter((s) => s.status === "active")
+      .sort((a, b) => a.sortOrder - b.sortOrder);
   },
 
   async getFaqs() {
     const rows = await list("faqs");
-    return rows.filter((s) => s.status !== "archived").sort((a, b) => a.sortOrder - b.sortOrder);
+    return rows
+      .filter((s) => s.status === undefined || s.status === "active")
+      .sort((a, b) => a.sortOrder - b.sortOrder);
   },
 
   async getRentalTerms() {
     return readOne("rentalTerms", "main");
+  },
+
+  /** One document regardless of publish state — the authoring read. */
+  async getContentById(collectionName, id) {
+    return readOne(collectionName, id);
+  },
+
+  async getOfferById(id) {
+    return readOne("offers", id);
+  },
+
+  async getFaqById(id) {
+    return readOne("faqs", id);
+  },
+
+  /** The terms are one document, so an update is the whole body. */
+  async updateRentalTerms(patch) {
+    const { db, doc, setDoc } = await fs();
+    const now = new Date().toISOString();
+    const existing = (await readOne("rentalTerms", "main")) ?? {};
+    const next = {
+      ...existing,
+      ...patch,
+      id: "main",
+      updatedAt: now,
+    };
+    await withConnectionRetry(
+      async () => setDoc(doc(db, "rentalTerms", "main"), next),
+      "write rentalTerms/main",
+    );
+    return next;
+  },
+
+  // ------------------------------------------------------ content write paths
+  /** Allocate an id; a `slug` stays a field so it can change without moving. */
+  async createCategory(input) {
+    return createContentDocument("categories", input);
+  },
+
+  async createLocation(input) {
+    return createContentDocument("locations", input);
+  },
+
+  async createOffer(input) {
+    return createContentDocument("offers", input);
+  },
+
+  async createFaq(input) {
+    return createContentDocument("faqs", input);
+  },
+
+  async updateCategory(id, patch) {
+    return updateContentDocument("categories", id, patch);
+  },
+
+  async updateLocation(id, patch) {
+    return updateContentDocument("locations", id, patch);
+  },
+
+  async updateOffer(id, patch) {
+    return updateContentDocument("offers", id, patch);
+  },
+
+  async updateFaq(id, patch) {
+    return updateContentDocument("faqs", id, patch);
+  },
+
+  async setCategoryStatus(id, status) {
+    if (!CONTENT_STATUSES.includes(status)) {
+      throw new Error(`invalid category status: ${status}`);
+    }
+    return this.updateCategory(id, { status });
+  },
+
+  async setLocationStatus(id, status) {
+    if (!CONTENT_STATUSES.includes(status)) {
+      throw new Error(`invalid location status: ${status}`);
+    }
+    return this.updateLocation(id, { status });
+  },
+
+  async setOfferStatus(id, status) {
+    if (!CONTENT_STATUSES.includes(status)) {
+      throw new Error(`invalid offer status: ${status}`);
+    }
+    return this.updateOffer(id, { status });
+  },
+
+  async setFaqStatus(id, status) {
+    if (!CONTENT_STATUSES.includes(status)) {
+      throw new Error(`invalid faq status: ${status}`);
+    }
+    return this.updateFaq(id, { status });
+  },
+
+  /** Removing an FAQ is destructive and admin-only, so it is a real delete. */
+  async deleteFaq(id) {
+    const { db, doc, deleteDoc } = await fs();
+    await withConnectionRetry(async () => deleteDoc(doc(db, "faqs", id)), `delete faqs/${id}`);
+    return true;
   },
 
   async getSiteSettings() {
@@ -432,6 +595,47 @@ function wrap(error, op) {
   const e = new Error(`Firestore ${op} failed: ${error?.message ?? error}`);
   e.cause = error;
   return e;
+}
+
+/** One `create` for every editable collection, minus the id Firestore assigns. */
+async function createContentDocument(collectionName, input) {
+  const { db, collection, doc, setDoc } = await fs();
+  const now = new Date().toISOString();
+  const fields = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (key === "id" || key.startsWith("_")) continue;
+    fields[key] = value;
+  }
+  const ref = doc(collection(db, collectionName));
+  const record = { ...fields, createdAt: now, updatedAt: now };
+  await withConnectionRetry(
+    async () => setDoc(ref, record),
+    `create ${collectionName}/${ref.id}`,
+  );
+  return { id: ref.id, ...fields, createdAt: now, updatedAt: now };
+}
+
+/** A patch, stamped, and re-read for the caller. */
+async function updateContentDocument(collectionName, id, patch) {
+  const { db, doc, updateDoc } = await fs();
+  const keys = Object.keys(patch);
+  if (!keys.length) return this.getContentById(collectionName, id);
+  await withConnectionRetry(
+    async () => {
+      await updateDoc(doc(db, collectionName, id), {
+        ...patch,
+        updatedAt: new Date().toISOString(),
+      });
+    },
+    `update ${collectionName}/${id}`,
+  );
+  try {
+    return await this.getContentById(collectionName, id);
+  } catch {
+    // The write has landed; a struggling confirmation read must not be allowed
+    // to claim it did not.
+    return { id };
+  }
 }
 
 export default firestoreAdapter;

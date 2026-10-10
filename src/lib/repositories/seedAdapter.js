@@ -15,6 +15,7 @@ import {
   publicStatusOf,
 } from "../booking/bookingDecision.js";
 import { VEHICLE_STATUSES, slugify } from "../fleet/vehicleInput.js";
+import { CONTENT_STATUSES } from "../content/contentInput.js";
 
 /**
  * Seed adapter — the local, Firestore-shaped data source used until a real
@@ -47,7 +48,12 @@ function failIfSimulated(where) {
 }
 
 const byId = (list, id) => list.find((item) => item.id === id) ?? null;
-const active = (list) => list.filter((item) => item.status !== "archived");
+/**
+ * Only published. "Not archived" was the earlier rule and it let drafts reach
+ * the storefront, which is the one thing the public reads must never do.
+ */
+const active = (list) =>
+  list.filter((item) => item.status === undefined || item.status === "active");
 
 /** Allocate a reference nobody in this store already holds. */
 function uniqueReference(list, base) {
@@ -112,7 +118,7 @@ export const seedAdapter = {
     await wait();
     failIfSimulated("getVehicleById");
     const v = byId(seed.vehicles, id);
-    return v && v.status !== "archived" ? v : null;
+    return v && v.status === "active" ? v : null;
   },
 
   /** The console's read: an archived vehicle still exists and must open. */
@@ -164,7 +170,7 @@ export const seedAdapter = {
   async getVehicleBySlug(slug) {
     await wait();
     failIfSimulated("getVehicleBySlug");
-    const v = seed.vehicles.find((item) => item.slug === slug && item.status !== "archived");
+    const v = seed.vehicles.find((item) => item.slug === slug && item.status === "active");
     return v ?? null;
   },
 
@@ -453,13 +459,179 @@ export const seedAdapter = {
   async getFaqs() {
     await wait();
     failIfSimulated("getFaqs");
-    return active(seed.faqs).sort((a, b) => a.sortOrder - b.sortOrder);
+    // `status` was added so a half-written answer is never live; the seeded
+    // entries predate it and therefore count as published.
+    return seed.faqs
+      .filter((f) => f.status === undefined || f.status === "active")
+      .sort((a, b) => a.sortOrder - b.sortOrder);
   },
 
   async getRentalTerms() {
     await wait();
     failIfSimulated("getRentalTerms");
     return seed.rentalTerms;
+  },
+
+  async updateRentalTerms(patch) {
+    await wait();
+    seed.rentalTerms = { ...seed.rentalTerms, ...patch, id: "main", updatedAt: new Date().toISOString() };
+    return seed.rentalTerms;
+  },
+
+  // -------------------------------------------------- content authoring (seed)
+  async getContentById(collectionName, id) {
+    await wait();
+    const rows = seed[collectionName] ?? [];
+    return rows.find((item) => item.id === id) ?? null;
+  },
+
+  async getOfferById(id) {
+    await wait();
+    return (seed.offers ?? []).find((item) => item.id === id) ?? null;
+  },
+
+  async getFaqById(id) {
+    await wait();
+    return (seed.faqs ?? []).find((item) => item.id === id) ?? null;
+  },
+
+  async queryAllCategories(filters = {}) {
+    await wait();
+    let rows = [...(seed.categories ?? [])];
+    if (filters.status && filters.status !== "all") {
+      rows = rows.filter((c) => c.status === filters.status);
+    }
+    if (filters.term) {
+      const term = filters.term.trim().toLowerCase();
+      rows = rows.filter((c) =>
+        [c.name?.en, c.name?.ar, c.slug].filter(Boolean).join(" ").toLowerCase().includes(term),
+      );
+    }
+    return rows.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  },
+
+  async queryAllLocations(filters = {}) {
+    await wait();
+    let rows = [...(seed.locations ?? [])];
+    if (filters.status && filters.status !== "all") {
+      rows = rows.filter((l) => l.status === filters.status);
+    }
+    if (filters.group && filters.group !== "all") {
+      rows = rows.filter((l) => l.group === filters.group);
+    }
+    if (filters.term) {
+      const term = filters.term.trim().toLowerCase();
+      rows = rows.filter((l) =>
+        [l.name?.en, l.name?.ar, l.shortName?.en, l.code]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(term),
+      );
+    }
+    return rows.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  },
+
+  async queryAllOffers(filters = {}) {
+    await wait();
+    let rows = [...(seed.offers ?? [])];
+    if (filters.status && filters.status !== "all") {
+      rows = rows.filter((o) => o.status === filters.status);
+    }
+    return rows.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  },
+
+  async queryAllFaqs() {
+    await wait();
+    return [...(seed.faqs ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  },
+
+  async createContent(collectionName, input) {
+    await wait();
+    const rows = seed[collectionName] ?? (seed[collectionName] = []);
+    const now = new Date().toISOString();
+    const fields = {};
+    for (const [key, value] of Object.entries(input)) {
+      if (key === "id" || key.startsWith("_")) continue;
+      fields[key] = value;
+    }
+    const id = fields.slug ? slugify(fields.slug) : `${collectionName.slice(0, 4)}-${rows.length + 1}-${Math.random().toString(36).slice(2, 7)}`;
+    if (rows.some((item) => item.id === id)) throw new Error(`${collectionName} already exists: ${id}`);
+    const created = { ...fields, id, createdAt: now, updatedAt: now };
+    rows.push(created);
+    return created;
+  },
+
+  async createCategory(input) {
+    return this.createContent("categories", input);
+  },
+
+  async createLocation(input) {
+    return this.createContent("locations", input);
+  },
+
+  async createOffer(input) {
+    return this.createContent("offers", input);
+  },
+
+  async createFaq(input) {
+    return this.createContent("faqs", input);
+  },
+
+  async updateContent(collectionName, id, patch) {
+    await wait();
+    const rows = seed[collectionName] ?? [];
+    const existing = rows.find((item) => item.id === id);
+    if (!existing) throw new Error(`${collectionName} not found: ${id}`);
+    Object.assign(existing, patch, { updatedAt: new Date().toISOString() });
+    return existing;
+  },
+
+  async updateCategory(id, patch) {
+    return this.updateContent("categories", id, patch);
+  },
+
+  async updateLocation(id, patch) {
+    return this.updateContent("locations", id, patch);
+  },
+
+  async updateOffer(id, patch) {
+    return this.updateContent("offers", id, patch);
+  },
+
+  async updateFaq(id, patch) {
+    return this.updateContent("faqs", id, patch);
+  },
+
+  async setContentStatus(collectionName, id, status) {
+    if (!CONTENT_STATUSES.includes(status)) {
+      throw new Error(`invalid ${collectionName} status: ${status}`);
+    }
+    return this.updateContent(collectionName, id, { status });
+  },
+
+  async setCategoryStatus(id, status) {
+    return this.setContentStatus("categories", id, status);
+  },
+
+  async setLocationStatus(id, status) {
+    return this.setContentStatus("locations", id, status);
+  },
+
+  async setOfferStatus(id, status) {
+    return this.setContentStatus("offers", id, status);
+  },
+
+  async setFaqStatus(id, status) {
+    return this.setContentStatus("faqs", id, status);
+  },
+
+  async deleteFaq(id) {
+    await wait();
+    const index = (seed.faqs ?? []).findIndex((item) => item.id === id);
+    if (index === -1) throw new Error(`faq not found: ${id}`);
+    seed.faqs.splice(index, 1);
+    return true;
   },
 
   async getSiteSettings() {

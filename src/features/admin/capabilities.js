@@ -32,8 +32,7 @@ export function can(role, capability) {
 
 /**
  * Navigation entries. A section is listed here only once its route renders,
- * so the navigation never offers a dead end — the fleet appears with Stage 3
- * and content arrives with Stage 4.
+ * so the navigation never offers a dead end.
  */
 export const ADMIN_SECTIONS = Object.freeze([
   {
@@ -49,6 +48,43 @@ export const ADMIN_SECTIONS = Object.freeze([
     labelKey: "admin.nav.fleet",
     icon: "key",
     capability: "fleet:write",
+  },
+  {
+    id: "categories",
+    path: "/admin/categories",
+    labelKey: "admin.nav.categories",
+    icon: "globe",
+    capability: "content:write",
+  },
+  {
+    id: "locations",
+    path: "/admin/locations",
+    labelKey: "admin.nav.locations",
+    icon: "pin",
+    capability: "content:write",
+  },
+  {
+    id: "offers",
+    path: "/admin/offers",
+    labelKey: "admin.nav.offers",
+    icon: "star",
+    capability: "content:write",
+  },
+  {
+    id: "faqs",
+    path: "/admin/faqs",
+    labelKey: "admin.nav.faqs",
+    icon: "quote",
+    capability: "content:write",
+  },
+  {
+    // Rental terms are a legal document, so they sit behind `settings:write`
+    // rather than plain content authoring.
+    id: "terms",
+    path: "/admin/terms",
+    labelKey: "admin.nav.terms",
+    icon: "shield",
+    capability: "settings:write",
   },
 ]);
 

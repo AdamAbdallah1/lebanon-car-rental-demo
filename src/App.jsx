@@ -117,6 +117,42 @@ export const routes = [
         lazy: page(() => import("./pages/admin/VehicleEditorPage.jsx")),
       },
       {
+        path: "categories",
+        lazy: page(() => import("./pages/admin/ContentListPage.jsx")),
+      },
+      {
+        path: "categories/:categoryId",
+        lazy: page(() => import("./pages/admin/ContentEditorPage.jsx")),
+      },
+      {
+        path: "locations",
+        lazy: page(() => import("./pages/admin/LocationsPage.jsx")),
+      },
+      {
+        path: "locations/:locationId",
+        lazy: page(() => import("./pages/admin/LocationEditorPage.jsx")),
+      },
+      {
+        path: "offers",
+        lazy: page(() => import("./pages/admin/ContentListPage.jsx")),
+      },
+      {
+        path: "offers/:offerId",
+        lazy: page(() => import("./pages/admin/ContentEditorPage.jsx")),
+      },
+      {
+        path: "faqs",
+        lazy: page(() => import("./pages/admin/ContentListPage.jsx")),
+      },
+      {
+        path: "faqs/:faqId",
+        lazy: page(() => import("./pages/admin/ContentEditorPage.jsx")),
+      },
+      {
+        path: "terms",
+        lazy: page(() => import("./pages/admin/TermsPage.jsx")),
+      },
+      {
         path: "*",
         lazy: async () => {
           const mod = await import("./features/admin/AdminStates.jsx");
