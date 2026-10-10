@@ -172,6 +172,14 @@ fleet page keeps its own filter — `queryVehicles` only ever returns `active`.
   storefront disagree about a field's type.
 * Publish / withdraw / archive write **only** the status; saving writes the
   fields. They are separate actions on purpose.
+* `updatedAt` is an ISO string, like every other timestamp in this model — not a
+  Firestore `Timestamp` sentinel, which would make the console and the
+  storefront disagree about a field's type.
+* Writes and single-document reads go through `withConnectionRetry`: if the
+  SDK's WebChannel has dropped it reports "the client is offline" and leaves the
+  operation pending, which would otherwise strand an operator on a "Saving…"
+  button that never resolves. The helper asks Firestore to re-establish the
+  connection and repeats the call once.
 
 Because the console writes the same `/vehicles` documents the storefront reads,
 a change made here is live on the public site on the next read — there is no

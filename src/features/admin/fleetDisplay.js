@@ -9,8 +9,8 @@ import { pick } from "../../i18n/localize.js";
  */
 
 /** Language half of an inline `{ en, ar }` field, falling back to English. */
-export function pickLocalized(value, locale) {
-  return pick(value, locale);
+export function pickLocalized(value, locale, fallback = "") {
+  return pick(value, locale, fallback);
 }
 
 const PUBLISH_LABEL_KEYS = Object.freeze({

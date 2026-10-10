@@ -35,6 +35,61 @@ async function fs() {
   return { db, ...mod };
 }
 
+/** Never leave an operator on a control that never resolves. */
+const OPERATION_TIMEOUT_MS = 10_000;
+
+function withTimeout(promise, ms, label) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms} ms`)), ms);
+    Promise.resolve(promise).then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+/**
+ * Retry a write once after re-establishing the connection, and never wait
+ * forever. Reads are deliberately not wrapped: they reject on their own and the
+ * console already shows that failure with a retry button.
+ *
+ * A dropped WebChannel leaves the SDK reporting "the client is offline" and the
+ * operation pending — which, without this, strands an operator on a "Saving…"
+ * button that never resolves and offers no way out but a reload. `enableNetwork()`
+ * is the documented way to bring the channel back; the timeout is what turns the
+ * remaining cases into an error the UI can actually show.
+ */
+async function withConnectionRetry(operation, label, { timeout = OPERATION_TIMEOUT_MS } = {}) {
+  let lastError = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return await (timeout === null ? operation() : withTimeout(operation(), timeout, label));
+    } catch (error) {
+      lastError = error;
+      const message = String(error?.message ?? error);
+      const retryable = /offline|unavailable|network|deadline|timed out/i.test(message);
+      if (attempt === 1 || !retryable) throw error;
+      try {
+        const { enableNetwork } = await import("firebase/firestore");
+        await withTimeout(
+          enableNetwork(await getFirestore()),
+          OPERATION_TIMEOUT_MS,
+          "enableNetwork",
+        );
+      } catch {
+        /* Re-establishing failed; the retry below surfaces the real error. */
+      }
+    }
+  }
+  throw lastError;
+}
+
 function snapshotToList(snapshot) {
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
@@ -45,14 +100,27 @@ async function list(collectionName, { whereClause = null, order = null, max = nu
   if (whereClause) constraints.push(where(whereClause[0], whereClause[1], whereClause[2]));
   if (order) constraints.push(orderBy(order.field, order.direction ?? "asc"));
   if (max) constraints.push(limit(max));
-  const snap = await getDocs(constraints.length ? query(collection(db, collectionName), ...constraints) : collection(db, collectionName));
+  const snap = await withConnectionRetry(
+    async () =>
+      getDocs(
+        constraints.length ? query(collection(db, collectionName), ...constraints) : collection(db, collectionName),
+      ),
+    `list ${collectionName}`,
+    // No timeout: a read that rejects already surfaces as an error the console
+    // shows with a retry button. Only writes need the cap.
+    { timeout: null },
+  );
   return snapshotToList(snap);
 }
 
 async function readOne(collectionName, id) {
   if (!id) return null;
   const { db, doc, getDoc } = await fs();
-  const snap = await getDoc(doc(db, collectionName, id));
+  const snap = await withConnectionRetry(
+    async () => getDoc(doc(db, collectionName, id)),
+    `read ${collectionName}/${id}`,
+    { timeout: null },
+  );
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
@@ -185,10 +253,23 @@ export const firestoreAdapter = {
   async updateVehicle(id, patch) {
     const { db, doc, updateDoc } = await fs();
     const keys = Object.keys(patch);
-    if (keys.length) {
-      await updateDoc(doc(db, "vehicles", id), { ...patch, updatedAt: new Date().toISOString() });
+    if (!keys.length) return this.getVehicleById(id);
+    await withConnectionRetry(
+      async () => {
+        await updateDoc(doc(db, "vehicles", id), {
+          ...patch,
+          updatedAt: new Date().toISOString(),
+        });
+      },
+      `update vehicles/${id}`,
+    );
+    // The write has landed. A confirmation read that struggles must not make
+    // the operator think it did not, so the page reloads rather than erroring.
+    try {
+      return await this.getVehicleById(id);
+    } catch {
+      return { id };
     }
-    return this.getVehicleById(id);
   },
 
   async setVehicleStatus(id, status) {
