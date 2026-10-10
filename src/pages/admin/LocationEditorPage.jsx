@@ -140,6 +140,9 @@ export function LocationEditorPage() {
       if (isNew) {
         const created = await repositories.createLocation(normalizeLocationInput(form));
         navigate(`/admin/locations/${created.id}`, { replace: true });
+        // Without this the page stays on "Saving…": the route changed, so the
+        // operator cannot press anything else until they reload.
+        setStatus("saved");
       } else {
         const patch = locationPatch(form, doc.data);
         if (Object.keys(patch).length === 0) setStatus("unchanged");

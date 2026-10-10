@@ -178,6 +178,9 @@ export function ContentEditorPage() {
       if (isNew) {
         const created = await section.create(payload);
         navigate(`${section.base}/${created.id}`, { replace: true });
+        // Without this the page stays on "Saving…": the route changed, so the
+        // operator cannot press anything else until they reload.
+        setStatus("saved");
       } else {
         const patch = section.form.patch(form, doc.data);
         if (Object.keys(patch).length === 0) setStatus("unchanged");
